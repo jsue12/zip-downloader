@@ -77,7 +77,7 @@ app.get("/generar-reporte", async (req, res) => {
         .text("No se encontró el archivo vague-stage.csv. No se generó la tabla de estudiantes.");
     } else {
       const vagueRes = await fetch(vagueUrl);
-      if (!vagueRes.ok) throw new Error("No se pudo descargar vague-stage.csv");
+      if (!vagueRes.ok) throw new Error("No se pudo descargar el resumen por estudiante");
       const vagueText = await vagueRes.text();
       const vagueRecords = parse(vagueText, { columns: true, skip_empty_lines: true });
 
@@ -90,7 +90,7 @@ app.get("/generar-reporte", async (req, res) => {
 
       // Encabezado tabla
       doc.moveDown();
-      doc.font("Helvetica-Bold").fontSize(14).text("LISTADO DE ESTUDIANTES");
+      doc.font("Helvetica-Bold").fontSize(14).text("RESUMEN POR ESTUDIANTE");
       doc.moveDown(0.5);
 
       const tableTop = doc.y;
@@ -109,11 +109,11 @@ app.get("/generar-reporte", async (req, res) => {
 
       vagueRecords.forEach((row, index) => {
         const keys = Object.keys(row);
-        const estudiante = row[keys[1]];
-        const cuotas = row[keys[2]];
-        const abonos = row[keys[3]];
-        const saldos = row[keys[4]];
-        const estado = row[keys[5]];
+        const estudiante = row[keys[0]];
+        const cuotas = row[keys[1]];
+        const abonos = row[keys[2]];
+        const saldos = row[keys[3]];
+        const estado = row[keys[6]];
 
         // Color según estado
         if (estado?.toUpperCase() === "POR COBRAR") {
