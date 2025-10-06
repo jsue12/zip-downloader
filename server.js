@@ -13,57 +13,134 @@ app.get("/generar-reporte", async (req, res) => {
       return res.status(400).send("Error: Debes incluir el parámetro 'url' con las direcciones de los CSV separadas por comas.");
     }
 
-    // 1️⃣ Obtener URLs del parámetro
+    // Obtener URLs desde el parámetro
     const csvUrls = urlsParam.split(",").map((u) => u.trim()).filter(Boolean);
 
-    // 2️⃣ Buscar el archivo brawny-letters.csv
-    const targetUrl = csvUrls.find((u) => u.toLowerCase().includes("brawny-letters.csv"));
-    if (!targetUrl) {
+    // Buscar los archivos requeridos
+    const brawnyUrl = csvUrls.find((u) => u.toLowerCase().includes("brawny-letters.csv"));
+    const vagueUrl = csvUrls.find((u) => u.toLowerCase().includes("vague-stage.csv"));
+
+    if (!brawnyUrl) {
       return res.status(404).send("No se encontró el archivo brawny-letters.csv en las URLs proporcionadas.");
     }
 
-    // 3️⃣ Descargar el CSV objetivo
-    const response = await fetch(targetUrl);
-    if (!response.ok) throw new Error("No se pudo descargar el archivo brawny-letters.csv");
-
-    const csvText = await response.text();
-    const records = parse(csvText, { columns: true, skip_empty_lines: true });
-    const data = records[0]; // Segunda fila con los valores
-
-    // 4️⃣ Formatear números
-    const formatNumber = (n) =>
-      Number(n).toLocaleString("es-EC", { minimumFractionDigits: 2 });
-
-    const recibidos = formatNumber(data[Object.keys(data)[0]]);
-    const entregados = formatNumber(data[Object.keys(data)[1]]);
-    const saldo = formatNumber(data[Object.keys(data)[2]]);
-
-    // 5️⃣ Crear el PDF
+    // Crear PDF
     const doc = new PDFDocument({ margin: 50 });
     res.setHeader("Content-Disposition", "attachment; filename=reporte.pdf");
     res.setHeader("Content-Type", "application/pdf");
     doc.pipe(res);
 
-    // Encabezado
+    // --- ENCABEZADO GENERAL ---
     doc.font("Helvetica-Bold").fontSize(18).text("REPORTE DE TRANSACCIONES", { align: "center" });
     doc.moveDown();
 
-    // Información general
     doc.font("Helvetica-Bold").fontSize(12).text("TESORERO: ", { continued: true });
     doc.font("Helvetica").text("Juan Pablo Barba Medina");
     doc.font("Helvetica-Bold").text("FECHA DEL INFORME: ", { continued: true });
     doc.font("Helvetica").text(dayjs().format("DD/MM/YYYY"));
     doc.moveDown();
 
-    // Sección de resumen
+    // --- RESUMEN EJECUTIVO (brawny-letters) ---
+    const brawnyRes = await fetch(brawnyUrl);
+    if (!brawnyRes.ok) throw new Error("No se pudo descargar brawny-letters.csv");
+
+    const brawnyText = await brawnyRes.text();
+    const brawnyRecords = parse(brawnyText, { columns: true, skip_empty_lines: true });
+    const brawnyData = brawnyRecords[0];
+
+    const formatNumber = (n) =>
+      Number(n).toLocaleString("es-EC", { minimumFractionDigits: 2 });
+
+    const recibidos = formatNumber(brawnyData[Object.keys(brawnyData)[0]]);
+    const entregados = formatNumber(brawnyData[Object.keys(brawnyData)[1]]);
+    const saldo = formatNumber(brawnyData[Object.keys(brawnyData)[2]]);
+
+    // Título sección
     doc.font("Helvetica-Bold").fontSize(14).text("RESUMEN EJECUTIVO");
     doc.moveDown();
 
     doc.font("Helvetica").fontSize(12);
     doc.text(`VALORES RECIBIDOS (+): ${recibidos}`);
     doc.text(`VALORES ENTREGADOS (-): ${entregados}`);
+    doc.moveDown(0.3);
     doc.font("Helvetica-Bold").text("SALDO TOTAL (=): ", { continued: true });
     doc.text(saldo);
+
+    // Línea divisoria
+    doc.moveDown(1);
+    doc.moveTo(50, doc.y).lineTo(550, doc.y).strokeColor("#000000").stroke();
+    doc.moveDown(1);
+
+    // --- TABLA (vague-stage.csv) ---
+    if (!vagueUrl) {
+      doc.font("Helvetica-Oblique").fontSize(11).fillColor("red")
+        .text("No se encontró el archivo vague-stage.csv. No se generó la tabla de estudiantes.");
+    } else {
+      const vagueRes = await fetch(vagueUrl);
+      if (!vagueRes.ok) throw new Error("No se pudo descargar vague-stage.csv");
+      const vagueText = await vagueRes.text();
+      const vagueRecords = parse(vagueText, { columns: true, skip_empty_lines: true });
+
+      // Ordenar A-Z por nombre de estudiante (segunda columna)
+      vagueRecords.sort((a, b) => {
+        const colNameA = Object.keys(a)[1];
+        const colNameB = Object.keys(b)[1];
+        return a[colNameA].localeCompare(b[colNameB]);
+      });
+
+      // Encabezado tabla
+      doc.moveDown();
+      doc.font("Helvetica-Bold").fontSize(14).text("LISTADO DE ESTUDIANTES");
+      doc.moveDown(0.5);
+
+      const tableTop = doc.y;
+      const columnPositions = [60, 100, 250, 320, 400, 470]; // posiciones X de las columnas
+
+      // Encabezados
+      doc.font("Helvetica-Bold").fontSize(11);
+      const headers = ["N°", "ESTUDIANTE", "CUOTAS", "ABONOS", "SALDOS", "ESTADO"];
+      headers.forEach((header, i) => {
+        doc.text(header, columnPositions[i], tableTop);
+      });
+
+      // Filas
+      let y = tableTop + 20;
+      doc.fontSize(10);
+
+      vagueRecords.forEach((row, index) => {
+        const keys = Object.keys(row);
+        const estudiante = row[keys[1]];
+        const cuotas = row[keys[2]];
+        const abonos = row[keys[3]];
+        const saldos = row[keys[4]];
+        const estado = row[keys[5]];
+
+        // Color según estado
+        if (estado?.toUpperCase() === "POR COBRAR") {
+          doc.fillColor("red");
+        } else if (estado?.toUpperCase() === "REVISAR") {
+          doc.fillColor("blue");
+        } else {
+          doc.fillColor("black");
+        }
+
+        // Imprimir fila
+        doc.text(index + 1, columnPositions[0], y);
+        doc.text(estudiante, columnPositions[1], y);
+        doc.text(cuotas, columnPositions[2], y);
+        doc.text(abonos, columnPositions[3], y);
+        doc.text(saldos, columnPositions[4], y);
+        doc.text(estado, columnPositions[5], y);
+
+        y += 18;
+
+        // Salto de página si se sale del límite
+        if (y > 750) {
+          doc.addPage();
+          y = 50;
+        }
+      });
+    }
 
     // Finalizar PDF
     doc.end();
