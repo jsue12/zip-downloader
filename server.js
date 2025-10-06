@@ -1,191 +1,127 @@
 import express from "express";
 import fetch from "node-fetch";
+import { parse } from "csv-parse/sync";
 import PDFDocument from "pdfkit";
-import csv from "csvtojson";
+import dayjs from "dayjs";
 
 const app = express();
 
 app.get("/generar-reporte", async (req, res) => {
   try {
-    const urls = req.query.url?.split(",") || [];
-    if (!urls.length) {
-      return res.status(400).send("Faltan URLs de archivos CSV");
+    const urlsParam = req.query.url;
+    if (!urlsParam) {
+      return res.status(400).send("Debes incluir el parámetro 'url' con las URLs de los CSVs separadas por coma.");
     }
 
-    const csvData = await Promise.all(urls.map(async (url) => {
-      const response = await fetch(url);
-      const text = await response.text();
-      return csv().fromString(text);
-    }));
+    // Obtener URLs
+    const csvUrls = urlsParam.split(",").map(u => u.trim()).filter(Boolean);
 
-    // === 1. Datos de brawny-letters.CSV ===
-    const brawny = csvData.find((_, i) => urls[i].includes("brawny-letters"));
-    const brawnyRow = brawny?.[0] || {};
+    // Buscar archivos específicos
+    const brawnyUrl = csvUrls.find(u => u.toLowerCase().includes("brawny-letters.csv"));
+    const vagueUrl = csvUrls.find(u => u.toLowerCase().includes("vague-stage.csv"));
 
-    const keys = Object.keys(brawnyRow);
-    const recibidos = parseFloat(brawnyRow[keys[0]] || 0);
-    const entregados = parseFloat(brawnyRow[keys[1]] || 0);
-    const saldo = parseFloat(brawnyRow[keys[2]] || 0);
+    if (!brawnyUrl) return res.status(404).send("No se encontró brawny-letters.csv");
 
-    // === 2. Datos de vague-stage.CSV ===
-    const vague = csvData.find((_, i) => urls[i].includes("vague-stage"));
-    const vagueRecords = vague ? vague.sort((a, b) => {
-      const ka = Object.keys(a)[0];
-      const kb = Object.keys(b)[0];
-      return a[ka].localeCompare(b[kb]);
-    }) : [];
-
-    // === 3. Crear el PDF ===
+    // Crear PDF
     const doc = new PDFDocument({ margin: 50 });
-    const buffers = [];
-    doc.on("data", buffers.push.bind(buffers));
-    doc.on("end", () => {
-      const pdfData = Buffer.concat(buffers);
-      res.setHeader("Content-Type", "application/pdf");
-      res.setHeader("Content-Disposition", "attachment; filename=reporte.pdf");
-      res.send(pdfData);
-    });
+    res.setHeader("Content-Disposition", "attachment; filename=reporte.pdf");
+    res.setHeader("Content-Type", "application/pdf");
+    doc.pipe(res);
 
-    // --- Encabezado ---
+    // --- ENCABEZADO GENERAL ---
     doc.font("Helvetica-Bold").fontSize(18).text("REPORTE DE TRANSACCIONES", { align: "center" });
     doc.moveDown();
-    doc.font("Helvetica-Bold").fontSize(12).text("TESORERO:", { continued: true })
-       .font("Helvetica").text(" JUAN PABLO BARBA MEDINA");
-    doc.font("Helvetica-Bold").text("FECHA DEL INFORME:", { continued: true })
-       .font("Helvetica").text(` ${new Date().toLocaleDateString("es-EC")}`);
+
+    doc.font("Helvetica-Bold").fontSize(12).text("TESORERO: ", { continued: true });
+    doc.font("Helvetica").text("Juan Pablo Barba Medina");
+    doc.font("Helvetica-Bold").text("FECHA DEL INFORME: ", { continued: true });
+    doc.font("Helvetica").text(dayjs().format("DD/MM/YYYY"));
     doc.moveDown();
 
-    // --- Resumen Ejecutivo ---
+    // --- RESUMEN EJECUTIVO ---
+    const resBrawny = await fetch(brawnyUrl);
+    const textBrawny = await resBrawny.text();
+    const recordsBrawny = parse(textBrawny, { columns: true, skip_empty_lines: true });
+    const dataBrawny = recordsBrawny[0];
+
+    const formatNumber = n => Number(n).toLocaleString("es-EC", { minimumFractionDigits: 2 });
+
+    const recibidos = formatNumber(dataBrawny[Object.keys(dataBrawny)[0]]);
+    const entregados = formatNumber(dataBrawny[Object.keys(dataBrawny)[1]]);
+    const saldo = formatNumber(dataBrawny[Object.keys(dataBrawny)[2]]);
+
     doc.font("Helvetica-Bold").fontSize(14).text("RESUMEN EJECUTIVO");
-    doc.moveDown(0.5);
-
-    const format = n => n.toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
-    doc.font("Helvetica").fontSize(12);
-    doc.text(`VALORES RECIBIDOS (+): ${format(recibidos)}`);
-    doc.text(`VALORES ENTREGADOS (-): ${format(entregados)}`);
-
-    // saldo en negrita
-    doc.font("Helvetica-Bold").text(`SALDO TOTAL (=): ${format(saldo)}`);
-
-    // Línea de separación
-    doc.moveDown().moveTo(50, doc.y).lineTo(550, doc.y).stroke();
     doc.moveDown();
 
-    // === TABLA vague-stage ===
-    doc.font("Helvetica-Bold").fontSize(14).text("LISTADO DE ESTUDIANTES");
-    doc.moveDown(0.5);
+    doc.font("Helvetica").fontSize(12).text(`VALORES RECIBIDOS (+): ${recibidos}`);
+    doc.text(`VALORES ENTREGADOS (-): ${entregados}`);
+    doc.moveDown(0.3);
+    doc.font("Helvetica-Bold").text(`SALDO TOTAL (=): ${saldo}`);
 
-    const tableTop = doc.y;
-    const rowHeight = 20;
-    const columnPositions = [60, 250, 320, 400, 470];
-    const columnWidths = [190, 70, 70, 70, 90];
+    // --- LÍNEA DE SEPARACIÓN ---
+    doc.moveDown(1);
+    doc.moveTo(50, doc.y).lineTo(550, doc.y).strokeColor("#000000").stroke();
+    doc.moveDown(1);
 
-    const headers = ["ESTUDIANTE", "CUOTAS", "ABONOS", "SALDOS", "ESTADO"];
-    doc.font("Helvetica-Bold").fontSize(11).fillColor("black");
-    headers.forEach((header, i) => {
-      doc.text(header, columnPositions[i], tableTop + 5, { width: columnWidths[i], align: "center" });
-    });
+    // --- TABLA VAGUE-STAGE ---
+    if (vagueUrl) {
+      const resVague = await fetch(vagueUrl);
+      const textVague = await resVague.text();
+      const recordsVague = parse(textVague, { columns: true, skip_empty_lines: true });
 
-    doc.moveTo(columnPositions[0], tableTop)
-       .lineTo(columnPositions[0] + columnWidths.reduce((a, b) => a + b, 0), tableTop)
-       .stroke();
-
-    let y = tableTop + rowHeight;
-
-    let totalCuotas = 0, totalAbonos = 0, totalSaldos = 0;
-    const f = n => n.toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
-    vagueRecords.forEach((row, index) => {
-      const keys = Object.keys(row);
-      const estudiante = row[keys[0]];
-      const cuotas = parseFloat(row[keys[1]] || 0);
-      const abonos = parseFloat(row[keys[2]] || 0);
-      const saldos = parseFloat(row[keys[3]] || 0);
-      const estado = (row[keys[5]] || "").toUpperCase();
-
-      totalCuotas += cuotas;
-      totalAbonos += abonos;
-      totalSaldos += saldos;
-
-      if (estado === "POR COBRAR") doc.fillColor("red");
-      else if (estado === "REVISAR") doc.fillColor("blue");
-      else doc.fillColor("black");
-
-      doc.font("Helvetica").fontSize(10);
-
-      // fondo alternado
-      if (index % 2 === 0) {
-        doc.rect(columnPositions[0], y, columnWidths.reduce((a, b) => a + b, 0), rowHeight)
-           .fillOpacity(0.04).fill("#d9d9d9").fillOpacity(1);
-      }
-
-      // texto
-      doc.text(estudiante, columnPositions[0], y + 5, { width: columnWidths[0], align: "left" });
-      doc.text(f(cuotas), columnPositions[1], y + 5, { width: columnWidths[1], align: "right" });
-      doc.text(f(abonos), columnPositions[2], y + 5, { width: columnWidths[2], align: "right" });
-      doc.text(f(saldos), columnPositions[3], y + 5, { width: columnWidths[3], align: "right" });
-      doc.text(estado, columnPositions[4], y + 5, { width: columnWidths[4], align: "center" });
-
-      // bordes
-      let x = columnPositions[0];
-      columnWidths.forEach(width => {
-        doc.rect(x, y, width, rowHeight).stroke();
-        x += width;
+      // Ordenar A-Z por nombre de estudiante (segunda columna)
+      recordsVague.sort((a, b) => {
+        const colA = Object.keys(a)[1];
+        const colB = Object.keys(b)[1];
+        return a[colA].localeCompare(b[colB]);
       });
 
-      y += rowHeight;
+      // Encabezados de la tabla
+      const headers = ["N°", "ESTUDIANTE", "CUOTAS", "ABONOS", "SALDOS", "ESTADO"];
+      const colX = [60, 100, 250, 320, 400, 470]; // posiciones X
+      const startY = doc.y;
+      doc.font("Helvetica-Bold").fontSize(11);
+      headers.forEach((h, i) => doc.text(h, colX[i], startY));
 
-      // salto de página
-      if (y > 750) {
-        doc.addPage();
-        const newTop = 50;
-        doc.font("Helvetica-Bold").fontSize(11).fillColor("black");
-        headers.forEach((header, i) => {
-          doc.text(header, columnPositions[i], newTop + 5, { width: columnWidths[i], align: "center" });
-        });
-        doc.moveTo(columnPositions[0], newTop)
-           .lineTo(columnPositions[0] + columnWidths.reduce((a, b) => a + b, 0), newTop)
-           .stroke();
-        y = newTop + rowHeight;
-      }
-    });
+      // Filas
+      let y = startY + 20;
+      doc.font("Helvetica").fontSize(10);
 
-    // --- Fila total general ---
-    doc.font("Helvetica-Bold").fillColor("black");
+      recordsVague.forEach((row, index) => {
+        const keys = Object.keys(row);
+        const estudiante = row[keys[1]];
+        const cuotas = row[keys[2]];
+        const abonos = row[keys[3]];
+        const saldos = row[keys[4]];
+        const estado = row[keys[5]];
 
-    // fondo gris oscuro
-    doc.rect(columnPositions[0], y, columnWidths.reduce((a, b) => a + b, 0), rowHeight)
-       .fill("#bfbfbf");
+        // Color según estado
+        if (estado?.toUpperCase() === "POR COBRAR") doc.fillColor("red");
+        else if (estado?.toUpperCase() === "REVISAR") doc.fillColor("blue");
+        else doc.fillColor("black");
 
-    doc.fillColor("black");
-    doc.text("TOTAL GENERAL", columnPositions[0], y + 5, {
-      width: columnWidths[0],
-      align: "left"
-    });
-    doc.text(f(totalCuotas), columnPositions[1], y + 5, { width: columnWidths[1], align: "right" });
-    doc.text(f(totalAbonos), columnPositions[2], y + 5, { width: columnWidths[2], align: "right" });
-    doc.text(f(totalSaldos), columnPositions[3], y + 5, { width: columnWidths[3], align: "right" });
-    doc.text("-", columnPositions[4], y + 5, { width: columnWidths[4], align: "center" });
+        // Escribir fila
+        doc.text(index + 1, colX[0], y);
+        doc.text(estudiante, colX[1], y);
+        doc.text(cuotas, colX[2], y);
+        doc.text(abonos, colX[3], y);
+        doc.text(saldos, colX[4], y);
+        doc.text(estado, colX[5], y);
 
-    let x = columnPositions[0];
-    columnWidths.forEach(width => {
-      doc.rect(x, y, width, rowHeight).stroke();
-      x += width;
-    });
+        y += 18;
+        if (y > 750) { doc.addPage(); y = 50; }
+      });
+    } else {
+      doc.font("Helvetica-Oblique").fillColor("red").text("No se encontró el archivo vague-stage.csv");
+    }
 
-    y += rowHeight;
-    doc.moveTo(columnPositions[0], y)
-       .lineTo(columnPositions[0] + columnWidths.reduce((a, b) => a + b, 0), y)
-       .stroke();
-
+    // Finalizar PDF
     doc.end();
-
   } catch (error) {
     console.error(error);
-    res.status(500).send("Error generando el PDF");
+    res.status(500).send("Error al generar el PDF");
   }
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Servidor en puerto ${PORT}`));
+app.listen(PORT, () => console.log(`Servidor activo en puerto ${PORT}`));
