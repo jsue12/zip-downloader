@@ -113,7 +113,7 @@ app.get("/generar-reporte", async (req, res) => {
         const cuotas = row[keys[1]];
         const abonos = row[keys[2]];
         const saldos = row[keys[3]];
-        const estado = row[keys[6]];
+        const estado = row[keys[5]];
 
         // Color según estado
         if (estado?.toUpperCase() === "POR COBRAR") {
