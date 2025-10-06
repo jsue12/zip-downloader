@@ -1,37 +1,68 @@
 import express from "express";
-import fetch from "node-fetch";
-import archiver from "archiver";
+import axios from "axios";
+import PDFDocument from "pdfkit";
+import dayjs from "dayjs";
+import { Readable } from "stream";
 
 const app = express();
+const port = process.env.PORT || 3000;
 
-app.get("/zip", async (req, res) => {
+// Función para leer CSV
+async function leerCSV(url) {
+  const resp = await axios.get(url);
+  const lineas = resp.data.trim().split("\n");
+  return lineas.map((l) => l.split(","));
+}
+
+app.get("/pdf", async (req, res) => {
   try {
-    const urls = (req.query.url || "").split(",").map(u => u.trim()).filter(u => u);
-    if (!urls.length) {
-      return res.status(400).send("Falta el parámetro ?url=");
-    }
+    const urls = req.query.url?.split(",") || [];
+    if (urls.length === 0) return res.status(400).send("❌ No se proporcionaron URLs de archivos CSV.");
 
-    // Configurar cabeceras de descarga
-    res.setHeader("Content-Type", "application/zip");
-    res.setHeader("Content-Disposition", "attachment; filename=archivos_csv.zip");
+    // Buscar el CSV llamado "brawny-letters.csv"
+    const urlBrawny = urls.find((u) => u.includes("brawny-letters.csv"));
+    if (!urlBrawny) return res.status(404).send("❌ No se encontró el archivo 'brawny-letters.csv'.");
 
-    const archive = archiver("zip");
-    archive.pipe(res);
+    // Leer datos del CSV
+    const csvData = await leerCSV(urlBrawny);
+    const headers = csvData[0];
+    const valores = csvData[1].map((v) => parseFloat(v));
 
-    // Descargar cada CSV y agregarlo al ZIP
-    for (let i = 0; i < urls.length; i++) {
-      const u = urls[i];
-      const response = await fetch(u);
-      const buffer = await response.arrayBuffer();
-      const name = u.split("/").pop() || `archivo_${i + 1}.csv`;
-      archive.append(Buffer.from(buffer), { name });
-    }
+    const [valRecibidos, valEntregados, saldoTotal] = valores;
 
-    await archive.finalize();
-  } catch (error) {
-    console.error(error);
-    res.status(500).send("Error al generar el ZIP");
+    const formatoNum = (n) =>
+      n.toLocaleString("es-EC", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+    // Crear PDF
+    const doc = new PDFDocument({ margin: 50 });
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", "attachment; filename=reporte_transacciones.pdf");
+
+    const stream = Readable.from(doc);
+    stream.pipe(res);
+
+    // Encabezado
+    doc.font("Helvetica-Bold").fontSize(18).text("REPORTE DE TRANSACCIONES", { align: "center" });
+    doc.moveDown();
+
+    // Datos principales
+    doc.fontSize(12);
+    doc.text("TESORERO: ", { continued: true }).font("Helvetica-Bold").text("JUAN PABLO BARBA MEDINA");
+    doc.text("FECHA DEL INFORME: ", { continued: true }).font("Helvetica-Bold").text(dayjs().format("DD/MM/YYYY"));
+    doc.moveDown();
+
+    // Resumen Ejecutivo
+    doc.font("Helvetica-Bold").text("RESUMEN EJECUTIVO");
+    doc.moveDown(0.5);
+    doc.font("Helvetica").text(`VALORES RECIBIDOS (+): ${formatoNum(valRecibidos)}`);
+    doc.text(`VALORES ENTREGADOS (-): ${formatoNum(valEntregados)}`);
+    doc.text(`SALDO TOTAL (=): ${formatoNum(saldoTotal)}`);
+
+    doc.end();
+  } catch (err) {
+    console.error("❌ Error generando PDF:", err.message);
+    res.status(500).send("Error generando el PDF.");
   }
 });
 
-app.listen(8080, () => console.log("Servidor iniciado en http://localhost:8080/zip?url="));
+app.listen(port, () => console.log(`✅ Servidor corriendo en puerto ${port}`));
