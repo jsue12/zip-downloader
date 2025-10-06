@@ -1,7 +1,7 @@
 {
   "name": "zip-downloader",
   "version": "1.0.0",
-  "description": "Servidor Render para generar reportes PDF desde CSV",
+  "description": "Servidor Render para generar reportes PDF desde CSVs remotos",
   "main": "server.js",
   "type": "module",
   "scripts": {
