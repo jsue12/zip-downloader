@@ -1,18 +1,18 @@
 {
   "name": "zip-downloader",
   "version": "1.0.0",
-  "description": "Servidor Render para generar reportes PDF desde CSVs remotos",
+  "description": "Servidor PDF desde CSV",
   "main": "server.js",
   "type": "module",
   "scripts": {
     "start": "node server.js"
   },
   "dependencies": {
-    "csv-parse": "^5.5.5",
-    "dayjs": "^1.11.11",
     "express": "^4.19.2",
     "node-fetch": "^3.3.2",
-    "pdfkit": "^0.15.0"
+    "csv-parse": "^5.5.5",
+    "pdfkit": "^0.15.0",
+    "dayjs": "^1.11.11"
   },
   "engines": {
     "node": ">=18"
