@@ -1,15 +1,15 @@
 {
-  "name": "zip-csv-downloader",
+  "name": "zip-downloader",
   "version": "1.0.0",
-  "description": "Servidor Node.js para comprimir múltiples CSV en un ZIP descargable",
-  "main": "server.js",
   "type": "module",
+  "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
   "dependencies": {
-    "express": "^4.18.2",
-    "node-fetch": "^3.3.2",
-    "archiver": "^5.3.1"
+    "axios": "^1.7.4",
+    "dayjs": "^1.11.10",
+    "express": "^4.19.2",
+    "pdfkit": "^0.15.0"
   }
 }
