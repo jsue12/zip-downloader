@@ -105,7 +105,7 @@ app.get("/generar-reporte", async (req, res) => {
 
       // Filas
       let y = tableTop + 20;
-      doc.fontSize(10);
+      doc..font("Helvetica").fontSize(10);
 
       vagueRecords.forEach((row, index) => {
         const keys = Object.keys(row);
