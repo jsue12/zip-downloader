@@ -62,7 +62,7 @@ app.get("/generar-reporte", async (req, res) => {
     doc.font("Helvetica").fontSize(12);
     doc.text(`VALORES RECIBIDOS (+): ${recibidos}`);
     doc.text(`VALORES ENTREGADOS (-): ${entregados}`);
-    doc.font("Helvetica-Bold").text("SALDO TOTAL (=): ${saldo}");
+    doc.font("Helvetica-Bold").text(`SALDO TOTAL (=): ${saldo}`);
 
     // Finalizar PDF
     doc.end();
