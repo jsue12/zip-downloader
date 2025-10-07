@@ -212,12 +212,6 @@ app.get("/generar-reporte", async (req, res) => {
 
     doc.moveTo(columnPositions[0], y + rowHeight).lineTo(columnPositions[0] + fullTableWidth, y + rowHeight).stroke();
 
-    doc.moveDown().moveTo(50, doc.y).lineTo(545, doc.y).stroke();
-    doc.moveDown();
-
-    doc.font("Helvetica-Bold").fontSize(12).text("TRANSACCIONES DE COBRO");
-    doc.moveDown(0.5);
-
     doc.end();
     console.log("[done] PDF stream ended");
 
