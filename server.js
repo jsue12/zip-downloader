@@ -436,7 +436,7 @@ app.get("/generar-reporte", async (req, res) => {
     
         startAngle = endAngle;
       });
-    }
+
 
   
     
