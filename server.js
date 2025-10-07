@@ -297,7 +297,127 @@ app.get("/generar-reporte", async (req, res) => {
     doc.font("Helvetica-Bold").fontSize(9).fillColor("black");
     doc.text("TOTAL DE VALORES RECIBIDOS", tPos[0] + 4, tTextY, { width: totalWidth - 8, align: "right" });
     doc.text(formatNumber(totalValor), tPos[5] + 3, tTextY, { width: tCols.valor - 6, align: "right" });
-
+  
+        // =============================
+    // GRAFICOS (BARRAS + SECTORES)
+    // =============================
+    
+    // Función para dibujar texto centrado
+    const centerText = (d, text, x, y, width) => {
+      const textWidth = d.widthOfString(text);
+      d.text(text, x + (width - textWidth) / 2, y);
+    };
+    
+    // Preparar datos desde vague-stage
+    if (vagueRecords.length > 0) {
+      const keys = Object.keys(vagueRecords[0]);
+    
+      const dataBarras = vagueRecords.map(row => ({
+        nombre: String(row[keys[0]] ?? ""),
+        valor: parseFloat(row[keys[4]] || 0)
+      }));
+    
+      // Orden descendente (mayor a menor)
+      dataBarras.sort((a, b) => b.valor - a.valor);
+    
+      // Datos totales para diagrama de pastel
+      const totalGeneral = vagueRecords.reduce((sum, row) => sum + (parseFloat(row[keys[2]] || 0)), 0);
+      const totalGasto = dataBarras.reduce((sum, r) => sum + r.valor, 0);
+      const saldoDisponible = totalGeneral - totalGasto;
+    
+      // Posiciones de los gráficos
+      doc.addPage();
+      let gx = 70, gy = 100;
+    
+      // =============================
+      // GRAFICO DE BARRAS
+      // =============================
+      doc.font("Helvetica-Bold").fontSize(13).text("GRÁFICO DE BARRAS - GASTOS POR ESTUDIANTE", { align: "center" });
+      doc.moveTo(70, doc.y + 5).lineTo(540, doc.y + 5).stroke();
+    
+      const barMaxHeight = 200;
+      const barWidth = 20;
+      const gap = 12;
+      const maxValue = Math.max(...dataBarras.map(d => d.valor));
+      const chartBottom = gy + barMaxHeight;
+    
+      gx = 70;
+      gy += 60;
+    
+      dataBarras.forEach((item, i) => {
+        const h = (item.valor / maxValue) * barMaxHeight;
+        const x = gx + i * (barWidth + gap);
+        const y = chartBottom - h;
+    
+        // Dibujar barra
+        fillRect(doc, x, y, barWidth, h, "#4682B4");
+        strokeRect(doc, x, y, barWidth, h);
+    
+        // Etiqueta numérica encima
+        doc.font("Helvetica").fontSize(8).fillColor("black");
+        centerText(doc, formatNumber(item.valor), x - 5, y - 12, barWidth + 10);
+    
+        // Nombre (rotado en X)
+        doc.save();
+        doc.rotate(-45, { origin: [x + barWidth / 2, chartBottom + 10] });
+        doc.text(item.nombre, x + barWidth / 2 - 20, chartBottom + 10, {
+          width: 60,
+          align: "right"
+        });
+        doc.restore();
+      });
+    
+      // =============================
+      // GRAFICO DE SECTORES
+      // =============================
+      doc.addPage();
+      doc.font("Helvetica-Bold").fontSize(13).text("DIAGRAMA DE SECTORES - DISTRIBUCIÓN DE GASTOS", { align: "center" });
+      doc.moveTo(70, doc.y + 5).lineTo(540, doc.y + 5).stroke();
+    
+      const cx = 300; // centro del círculo
+      const cy = 350;
+      const radius = 120;
+    
+      const allSlices = [...dataBarras, { nombre: "Saldo disponible", valor: saldoDisponible }];
+    
+      const sumTotal = allSlices.reduce((s, v) => s + v.valor, 0);
+      let startAngle = 0;
+    
+      allSlices.forEach((slice, i) => {
+        const sliceAngle = (slice.valor / sumTotal) * Math.PI * 2;
+        const endAngle = startAngle + sliceAngle;
+    
+        // Color distinto por estudiante (simple hue shift)
+        const hue = (i * 50) % 360;
+        const color = `hsl(${hue}, 70%, 60%)`;
+    
+        // Sector
+        doc.save();
+        doc.moveTo(cx, cy);
+        doc.path()
+          .moveTo(cx, cy)
+          .arc(cx, cy, radius, startAngle, endAngle)
+          .closePath()
+          .fill(color)
+          .stroke();
+        doc.restore();
+    
+        // Etiqueta
+        const midAngle = startAngle + sliceAngle / 2;
+        const labelX = cx + Math.cos(midAngle) * (radius + 20);
+        const labelY = cy + Math.sin(midAngle) * (radius + 20);
+    
+        doc.font("Helvetica").fontSize(9).fillColor("black")
+          .text(`${slice.nombre} (${((slice.valor / sumTotal) * 100).toFixed(1)}%)`, labelX - 25, labelY, {
+            width: 80,
+            align: "center"
+          });
+    
+        startAngle = endAngle;
+      });
+    }
+  
+    
     // Finalizar PDF
     doc.end();
     console.log("[done] PDF stream ended ✅");
