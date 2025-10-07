@@ -166,8 +166,12 @@ app.get("/generar-reporte", async (req, res) => {
     // TABLA DE TELLING-MATCH
     // ===================
     // 🔹 CORRECCIÓN 2: Alinear texto a la izquierda
-    doc.moveTo(50, doc.y)
-    doc.font("Helvetica-Bold").fontSize(12).text("TRANSACCIONES DE COBRO", { align: "left" });
+    doc.moveDown(0.5);
+    doc.font("Helvetica-Bold").fontSize(12);
+    doc.text("TRANSACCIONES DE COBRO", 50, doc.y, {
+      align: "left",
+      width: 500 // Fuerza el ancho de la línea para evitar que use el margen de la tabla anterior
+    });
     doc.moveDown(0.5);
 
     const tMargin = 50;
@@ -206,9 +210,9 @@ app.get("/generar-reporte", async (req, res) => {
         ? fechaRaw
         : `${String(fechaObj.getDate()).padStart(2, "0")}-${String(fechaObj.getMonth() + 1).padStart(2, "0")}-${fechaObj.getFullYear()}`;
 
-      const estudiante = String(r["Estudiante"] || "");
-      const banco = String(r["Banco"] || "");
-      const comp = String(r["# comprobante"] || r["Comprobante"] || "");
+      const estudiante = String(r["Estudiante"] || "").trim();
+      const banco = String(r["Banco"] || "").trim();
+      const comp = String(r["# comprobante"] || "").trim();
       const valor = parseFloat(r["Valor"] || 0);
       totalValor += valor;
 
