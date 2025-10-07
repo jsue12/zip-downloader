@@ -85,17 +85,20 @@ app.get("/generar-reporte", async (req, res) => {
     // --- Tabla de estudiantes ---
     doc.font("Helvetica-Bold").fontSize(14).text("LISTADO DE ESTUDIANTES");
     doc.moveDown(0.5);
-
+    
     const tableTop = doc.y;
     const rowHeight = 20;
+    
+    // Posiciones y anchos de columna (alineadas y contiguas)
     const colX = [50, 80, 270, 340, 410, 480, 550];
-    const colW = [30, 190, 70, 70, 70, 70]; // última celda solo para margen
-
+    const colW = [30, 190, 70, 70, 70, 70];
+    
+    // Encabezados con borde
     const headers = ["N°", "ESTUDIANTE", "CUOTAS", "ABONOS", "SALDOS", "ESTADO"];
     doc.font("Helvetica-Bold").fontSize(11).fillColor("black");
     
     let headerY = tableTop;
-
+    
     // Dibujar fondo y bordes de encabezado
     for (let i = 0; i < headers.length; i++) {
       doc.rect(colX[i], headerY, colW[i], rowHeight).fill("#e6e6e6").stroke();
@@ -104,30 +107,32 @@ app.get("/generar-reporte", async (req, res) => {
         align: "center"
       });
     }
-
+    
     // Línea bajo encabezado (termina al final exacto de la última columna)
     const tableRightEdge = colX[colX.length - 1] + colW[colW.length - 1];
     doc.moveTo(colX[0], headerY + rowHeight).lineTo(tableRightEdge, headerY + rowHeight).stroke();
     
     let y = headerY + rowHeight;
     let totalCuotas = 0, totalAbonos = 0, totalSaldos = 0;
-
+    
+    // --- Filas de estudiantes ---
     vagueRecords.forEach((r, i) => {
       const keys = Object.keys(r);
       const estudiante = r[keys[0]] ?? "";
       const cuotas = parseFloat(r[keys[1]] || 0);
       const abonos = parseFloat(r[keys[2]] || 0);
       const saldos = parseFloat(r[keys[3]] || 0);
-      const estado = (r[keys[5]] ?? "").toString().trim().toUpperCase();
-
+      const estado = (r[keys[keys.length - 1]] || "").toString().toUpperCase();
+    
       totalCuotas += cuotas;
       totalAbonos += abonos;
       totalSaldos += saldos;
-
+    
+      // Color por estado
       let color = "black";
       if (estado === "POR COBRAR") color = "red";
       else if (estado === "REVISAR") color = "blue";
-
+    
       // Fondo alternado gris claro
       if (i % 2 === 0) {
         doc.save();
