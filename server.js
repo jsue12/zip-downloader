@@ -308,24 +308,23 @@ app.get("/generar-reporte", async (req, res) => {
         valor: parseFloat(row[keys[4]] || 0)
       }));
     
-      // Orden descendente (mayor a menor)
       dataBarras.sort((a, b) => b.valor - a.valor);
     
       const totalGeneral = vagueRecords.reduce((s, r) => s + (parseFloat(r[keys[2]] || 0)), 0);
       const totalGasto = dataBarras.reduce((s, r) => s + r.valor, 0);
       const saldoDisponible = Math.max(0, totalGeneral - totalGasto);
     
-      // === Gráfico de Barras ===
-      const chartDataBarras = {
+      // ====== CONFIGURACIÓN CHART.JS ======
+      const chartConfigBar = {
         type: "bar",
         data: {
           labels: dataBarras.map(d => d.nombre),
           datasets: [{
             label: "Gasto por estudiante",
             data: dataBarras.map(d => d.valor),
-            backgroundColor: dataBarras.map(() => "rgba(54, 162, 235, 0.75)"),
-            borderColor: "#2b5ea8",
-            borderWidth: 1.5
+            backgroundColor: "rgba(54,162,235,0.7)",
+            borderColor: "rgba(54,162,235,1)",
+            borderWidth: 1
           }]
         },
         options: {
@@ -334,44 +333,38 @@ app.get("/generar-reporte", async (req, res) => {
             title: {
               display: true,
               text: "GASTOS POR ESTUDIANTE",
-              color: "#333",
-              font: { size: 16, family: "Arial" }
+              font: { size: 16 }
             }
           },
           scales: {
             x: {
               ticks: {
-                color: "#333",
-                font: { size: 9 },
                 maxRotation: 45,
-                minRotation: 45
+                minRotation: 45,
+                color: "#333",
+                font: { size: 9 }
               },
               grid: { display: false }
             },
             y: {
               beginAtZero: true,
               ticks: { color: "#333" },
-              grid: { color: "#ccc" }
+              grid: { color: "#ddd" }
             }
           }
         }
       };
     
-      const chartUrlBarras =
-        "https://quickchart.io/chart?width=800&height=350&format=png&c=" +
-        encodeURIComponent(JSON.stringify(chartDataBarras));
-    
-      // === Gráfico de Pastel ===
-      const chartDataPie = {
+      const chartConfigPie = {
         type: "pie",
         data: {
           labels: [...dataBarras.map(d => d.nombre), "Saldo disponible"],
           datasets: [{
             data: [...dataBarras.map(d => d.valor), saldoDisponible],
             backgroundColor: [
-              "#36A2EB", "#FF6384", "#FFCE56", "#4BC0C0",
-              "#9966FF", "#FF9F40", "#C9CBCF", "#C0E6A9",
-              "#E899DC", "#FFB6C1", "#89CFF0", "#FFD580"
+              "#36A2EB","#FF6384","#FFCE56","#4BC0C0",
+              "#9966FF","#FF9F40","#C9CBCF","#A3E1D4",
+              "#F7A6A6","#89CFF0","#FFD580","#B0E57C"
             ]
           }]
         },
@@ -379,34 +372,40 @@ app.get("/generar-reporte", async (req, res) => {
           plugins: {
             title: {
               display: true,
-              text: "DISTRIBUCIÓN DE GASTOS VS SALDO DISPONIBLE",
-              color: "#333",
+              text: "DISTRIBUCIÓN DE GASTOS Y SALDO DISPONIBLE",
               font: { size: 16 }
             },
             legend: {
               position: "bottom",
-              labels: { color: "#333", font: { size: 10 } }
+              labels: { font: { size: 9 } }
             }
           }
         }
       };
     
-      const chartUrlPie =
-        "https://quickchart.io/chart?width=600&height=300&format=png&c=" +
-        encodeURIComponent(JSON.stringify(chartDataPie));
+      // ====== URLs de imágenes QuickChart ======
+      const urlBar = "https://quickchart.io/chart?width=800&height=350&format=png&c=" +
+                     encodeURIComponent(JSON.stringify(chartConfigBar));
+      const urlPie = "https://quickchart.io/chart?width=600&height=300&format=png&c=" +
+                     encodeURIComponent(JSON.stringify(chartConfigPie));
     
-      // === Insertar en PDF ===
+      // ====== Agregar al PDF ======
       doc.addPage();
-      doc.font("Helvetica-Bold").fontSize(13).text("GRÁFICOS DE GASTOS", { align: "center" });
-      doc.moveDown();
+      doc.font("Helvetica-Bold").fontSize(14).text("GRÁFICOS DE GASTOS", { align: "center" });
+      doc.moveDown(1);
     
-      const imgBar = await fetch(chartUrlBarras).then(r => r.arrayBuffer());
-      doc.image(Buffer.from(imgBar), { fit: [500, 250], align: "center", valign: "center" });
+      const imgBar = await fetch(urlBar).then(r => r.arrayBuffer());
+      const imgPie = await fetch(urlPie).then(r => r.arrayBuffer());
     
-      doc.moveDown(2);
+      // Inserta el primero
+      const barY = doc.y;
+      doc.image(Buffer.from(imgBar), 60, barY, { fit: [480, 250], align: "center" });
     
-      const imgPie = await fetch(chartUrlPie).then(r => r.arrayBuffer());
-      doc.image(Buffer.from(imgPie), { fit: [400, 200], align: "center", valign: "center" });
+      // Espaciado entre gráficos
+      const nextY = barY + 280;
+      doc.image(Buffer.from(imgPie), 100, nextY, { fit: [400, 250], align: "center" });
+    
+      doc.moveDown(6);
     }
 
 
