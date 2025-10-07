@@ -310,6 +310,21 @@ app.get("/generar-reporte", async (req, res) => {
     doc.text("RESUMEN DE VALORES PAGADOS", 50, doc.y, { align: "left", width: 500 });
     doc.moveDown(1);
 
+// =============================
+// GRAFICO ASCII DE GASTOS EN UNA SOLA LÍNEA
+// =============================
+
+// Verificar espacio en página
+if (doc.y + 80 > doc.page.height - 50) {
+  doc.addPage();
+  doc.y = 50;
+}
+
+doc.moveDown(1);
+doc.font("Helvetica-Bold").fontSize(12).text("DASHBOARD DE GASTOS (VAGUE-STAGE)");
+doc.moveDown(0.5);
+
+// Convertir registros en datos base
 const vagueMatrix = vagueRecords.map(row => {
   const keys = Object.keys(row);
   const estudiante = String(row[keys[0]] || "").trim();
@@ -321,44 +336,35 @@ vagueMatrix.sort((a, b) => b.gasto - a.gasto);
 const totalGasto = vagueMatrix.reduce((sum, r) => sum + r.gasto, 0);
 const maxGasto = Math.max(...vagueMatrix.map(r => r.gasto));
 
-// Parámetros visuales
-const labelWidth = 120;
-const barMaxWidth = 200;
-const barHeight = 8;
-const spacing = 6;
+// === CONFIGURACIÓN DE FORMATO ===
+const labelWidth = 18;       // caracteres
+const barMaxChars = 40;      // longitud máxima de barra (≈ 200 pt aprox)
+const barChar = "█";         // carácter de relleno
+const endChar = "▏";         // carácter de cierre
+const spacing = 3;           // separación entre columnas
 
 doc.font("Courier").fontSize(9).fillColor("black");
 
+// === GRAFICAR FILAS ===
 vagueMatrix.forEach(({ estudiante, gasto }) => {
   if (doc.y + 15 > doc.page.height - 50) {
     doc.addPage();
     doc.y = 50;
   }
 
-  const y = doc.y; // Guardamos posición base
   const porcentaje = totalGasto > 0 ? (gasto / totalGasto) * 100 : 0;
-  const barLength = maxGasto > 0 ? (gasto / maxGasto) * barMaxWidth : 0;
+  const barLength = maxGasto > 0 ? Math.round((gasto / maxGasto) * barMaxChars) : 0;
+  const bar = barChar.repeat(barLength) + (barLength > 0 ? endChar : "");
 
-  // === NOMBRE ===
-  const nombre = estudiante.padEnd(18).substring(0, 18);
-  doc.text(nombre, marginLeft, y, { width: labelWidth, align: "left" });
+  // Nombre alineado
+  const nombre = estudiante.padEnd(labelWidth).substring(0, labelWidth);
 
-  // === BARRA ===
-  const barX = marginLeft + labelWidth + spacing;
-  const barY = y + 3;
-  doc.save()
-    .rect(barX, barY, barLength, barHeight)
-    .fillColor("#0074D9")
-    .fill()
-    .restore();
-
-  // === LEYENDA ===
-  const legendX = barX + barMaxWidth + 10;
+  // Leyenda derecha
   const legend = `${formatNumber(gasto)} — ${porcentaje.toFixed(2)}%`;
-  doc.fillColor("black").text(legend, legendX, y, { align: "left" });
 
-  // Avanzar a la siguiente fila manualmente
-  doc.moveDown(0.7);
+  // Línea completa
+  const line = `${nombre} | ${bar.padEnd(barMaxChars)} | ${legend}`;
+  doc.text(line, marginLeft, doc.y, { continued: false });
 });
   
     
