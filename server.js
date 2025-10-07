@@ -126,7 +126,7 @@ app.get("/generar-reporte", async (req, res) => {
         fillRect(doc, positions[i], yPos, columns[i], rowHeight, "#e6e6e6");
         strokeRect(doc, positions[i], yPos, columns[i], rowHeight);
         doc.font("Helvetica-Bold").fontSize(10).fillColor("black")
-          .text(h, positions[i] + 4, yPos + 6, { width: columns[i] - 8, align: "center" });
+          .text(h, positions[i] + 4, yPos + 8, { width: columns[i] - 8, align: "center" });
       });
     };
 
@@ -150,7 +150,7 @@ app.get("/generar-reporte", async (req, res) => {
       let x = positions[0];
       columns.forEach((cw) => { strokeRect(doc, x, y, cw, rowHeight); x += cw; });
 
-      const textY = y + 6;
+      const textY = y + 8;
       doc.font("Helvetica").fontSize(10).fillColor("black");
       doc.text(String(i + 1), positions[0] + 3, textY, { width: columns[0] - 6, align: "center" });
       doc.text(estudiante, positions[1] + 4, textY, { width: columns[0] +columns[1] - 8, align: "left" });
