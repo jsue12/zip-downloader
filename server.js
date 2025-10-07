@@ -325,7 +325,7 @@ const totalGasto = vagueMatrix.reduce((sum, r) => sum + r.gasto, 0);
 const maxGasto = Math.max(...vagueMatrix.map(r => r.gasto));
 
 // Parámetros del gráfico
-const marginLeft = 50;        // margen izquierdo
+//const marginLeft = 50;        // margen izquierdo
 const graphWidth = 495;       // ancho máximo permitido
 const barHeight = 14;         // altura por fila
 const labelWidth = 120;       // espacio reservado para nombre
