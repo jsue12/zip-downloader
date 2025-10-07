@@ -317,54 +317,52 @@ const vagueMatrix = vagueRecords.map(row => {
   return { estudiante, gasto };
 }).filter(r => r.estudiante && !isNaN(r.gasto));
 
-// Ordenar de mayor a menor
+// Ordenar y calcular totales
 vagueMatrix.sort((a, b) => b.gasto - a.gasto);
-
-// Calcular totales
-const totalGasto = vagueMatrix.reduce((sum, r) => sum + r.gasto, 0);
+const totalGasto = vagueMatrix.reduce((s, r) => s + r.gasto, 0);
 const maxGasto = Math.max(...vagueMatrix.map(r => r.gasto));
 
-// Parámetros del gráfico
-const maxBarWidth = 200;      // ancho máximo de la barra
-const barHeight = 14;         // altura por fila
-const labelWidth = 120;       // ancho reservado para nombres
-const spacing = 4;            // espacio entre nombre y barra
-const barChar = "%ˆ";          // carácter visual de la barra
+// Parámetros visuales
+const labelWidth = 120;   // ancho reservado para nombre
+const barMaxWidth = 200;  // ancho máximo de la barra
+const barHeight = 8;      // altura de cada barra
+const spacing = 6;        // separación horizontal
 
-// Fuente monoespaciada
 doc.font("Courier").fontSize(9).fillColor("black");
 
+// Dibujar cada barra
 vagueMatrix.forEach(({ estudiante, gasto }) => {
-  if (doc.y + barHeight > doc.page.height - 50) return;
+  if (doc.y + 20 > doc.page.height - 50) {
+    doc.addPage();
+    doc.y = 50;
+  }
 
   const porcentaje = totalGasto > 0 ? (gasto / totalGasto) * 100 : 0;
-  const barLen = maxGasto > 0 ? (gasto / maxGasto) * maxBarWidth : 0;
+  const barLength = maxGasto > 0 ? (gasto / maxGasto) * barMaxWidth : 0;
 
-  // Texto del nombre
+  // Nombre alineado a la izquierda
   const nombre = estudiante.padEnd(18).substring(0, 18);
   doc.text(nombre, marginLeft, doc.y, { width: labelWidth, align: "left" });
 
-  // Posición inicial de la barra
+  // Coordenadas de la barra
   const barX = marginLeft + labelWidth + spacing;
+  const barY = doc.y + 3;
 
-  // Calcular número de repeticiones del patrón dentro de 200 pt
-  const charWidth = 6; // ancho aproximado por carácter en Courier 9pt
-  const patternWidth = pattern.length * charWidth;
-  const repeatCount = Math.max(1, Math.floor(barLen / patternWidth));
-  const barString = pattern.repeat(repeatCount);
+  // Dibujar la barra (rectángulo)
+  doc.save();
+  doc.rect(barX, barY, barLength, barHeight)
+     .fillColor("#0074D9")   // color azul agradable
+     .fill();
+  doc.restore();
 
-  // Dibujar barra con el patrón %ˆ%ˆ%ˆ
-  doc.text(barString, barX, doc.y, { width: maxBarWidth, align: "left" });
-
-  // Leyenda justo después de la barra
-  const legendX = barX + maxBarWidth + 6;
+  // Leyenda a continuación de la barra
+  const legendX = barX + barMaxWidth + 10;
   const legend = `${formatNumber(gasto)} — ${porcentaje.toFixed(2)}%`;
-  doc.text(legend, legendX, doc.y, { align: "left" });
+  doc.fillColor("black").text(legend, legendX, doc.y, { align: "left" });
 
-  // Avanzar a la siguiente fila
-  doc.moveDown(0.3);
+  // Siguiente fila
+  doc.moveDown(0.5);
 });
-
   
     
     // Finalizar PDF
