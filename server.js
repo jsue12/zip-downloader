@@ -174,7 +174,7 @@ app.get("/generar-reporte", async (req, res) => {
     doc.text(formatNumber(totalAbonos), positions[3] + 3, y + 6, { width: columns[3] - 6, align: "right" });
     doc.text(formatNumber(totalSaldos), positions[4] + 3, y + 6, { width: columns[4] - 6, align: "right" });
     doc.text(" ", positions[5] + 3, y + 6, { width: columns[5] - 6, align: "center" });
-    doc.moveDown(2.5);
+    doc.moveDown(2);
 
     // =============================
     // TABLA DE TELLING-MATCH
@@ -212,8 +212,6 @@ app.get("/generar-reporte", async (req, res) => {
     let totalValor = 0;
     const tellingMatrix = tellingRecords.map(obj => Object.values(obj));
 
-    console.log(tellingMatrix[0]);
-    
     tellingMatrix.forEach((row, i) => {
       // Acceder por índice según orden de columnas
       const fechaRaw = String(row[0] || "");
