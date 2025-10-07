@@ -151,7 +151,7 @@ app.get("/generar-reporte", async (req, res) => {
         doc.addPage();
         const newHeaderY = 50;
         for (let j = 0; j < headers.length; j++) {
-          fillRect(doc, columnPositions[j], newHeaderY, Object.values(colWidths)[j], rowHeight, "#e6e6e6");
+          fillRect(doc, columnPositions[j], newHeaderY, Object.values(colWidths)[j], rowHeight, "#bfd7d9");
           strokeRect(doc, columnPositions[j], newHeaderY, Object.values(colWidths)[j], rowHeight);
           const headerTextY = newHeaderY + (rowHeight - doc.currentLineHeight()) / 2;
           doc.font("Helvetica-Bold").fontSize(10).fillColor("black");
@@ -163,7 +163,7 @@ app.get("/generar-reporte", async (req, res) => {
         y = newHeaderY + rowHeight;
       }
 
-      if (i % 2 === 0) fillRect(doc, columnPositions[0], y, Object.values(colWidths).reduce((a, b) => a + b), rowHeight, "#fafafa");
+      if (i % 2 === 0) fillRect(doc, columnPositions[0], y, Object.values(colWidths).reduce((a, b) => a + b), rowHeight, "#bfd7d9");
 
       let cx = columnPositions[0];
       for (let c = 0; c < Object.values(colWidths).length; c++) {
