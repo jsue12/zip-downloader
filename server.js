@@ -194,7 +194,7 @@ app.get("/generar-reporte", async (req, res) => {
     }
 
     const fullTableWidth = Object.values(colWidths).reduce((a, b) => a + b);
-    fillRect(doc, columnPositions[0], y, fullTableWidth, rowHeight, "#bfbfbf");
+    fillRect(doc, columnPositions[0], y, fullTableWidth, rowHeight, "#bfd7d9");
     let tx = columnPositions[0];
     for (let c = 0; c < Object.values(colWidths).length; c++) {
       strokeRect(doc, tx, y, Object.values(colWidths)[c], rowHeight);
