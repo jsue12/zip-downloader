@@ -325,14 +325,14 @@ const totalGasto = vagueMatrix.reduce((sum, r) => sum + r.gasto, 0);
 const maxGasto = Math.max(...vagueMatrix.map(r => r.gasto));
 
 // Parámetros del gráfico
-//const marginLeft = 50;        // margen izquierdo
-const graphWidth = 495;       // ancho máximo permitido
+const marginLeft = 50;        // margen izquierdo
+const maxBarWidth = 200;      // ancho máximo de la barra
 const barHeight = 14;         // altura por fila
-const labelWidth = 120;       // espacio reservado para nombre
-const barChar = "█";          // carácter de barra
+const labelWidth = 120;       // ancho reservado para nombres
 const spacing = 4;            // espacio entre nombre y barra
+const barChar = "█";          // carácter visual de la barra
 
-// Fuente monoespaciada para alineación perfecta
+// Fuente monoespaciada
 doc.font("Courier").fontSize(9).fillColor("black");
 
 // Dibujar gráfico
@@ -340,28 +340,28 @@ vagueMatrix.forEach(({ estudiante, gasto }) => {
   if (doc.y + barHeight > doc.page.height - 50) return; // detener si no cabe
 
   const porcentaje = totalGasto > 0 ? (gasto / totalGasto) * 100 : 0;
-  const barLen = maxGasto > 0 ? (gasto / maxGasto) * (graphWidth - labelWidth - spacing - 80) : 0;
+  const barLen = maxGasto > 0 ? (gasto / maxGasto) * maxBarWidth : 0;
 
-  // texto del nombre (máximo 18 caracteres visibles)
+  // texto del nombre (ajustado)
   const nombre = estudiante.padEnd(18).substring(0, 18);
 
-  // dibujar nombre
+  // nombre
   doc.text(nombre, marginLeft, doc.y, { width: labelWidth, align: "left" });
 
   // posición inicial de la barra
   const barX = marginLeft + labelWidth + spacing;
-  const barY = doc.y + 2;
 
-  // dibujar la barra como texto
-  const bar = barChar.repeat(Math.max(1, Math.floor(barLen / 6)));
-  doc.text(bar, barX, doc.y, { width: graphWidth - labelWidth - 150, align: "left" });
+  // dibujar la barra (convertir longitud en caracteres aproximados)
+  const charCount = Math.max(1, Math.floor(barLen / 6));
+  const bar = barChar.repeat(charCount);
+  doc.text(bar, barX, doc.y, { width: maxBarWidth, align: "left" });
 
   // leyenda justo después de la barra
-  const legendX = barX + (barLen / 6) * 6 + 6; // pequeña separación después de barra
+  const legendX = barX + maxBarWidth + 6;
   const legend = `${formatNumber(gasto)} — ${porcentaje.toFixed(2)}%`;
   doc.text(legend, legendX, doc.y, { align: "left" });
 
-  // avanzar a siguiente línea
+  // siguiente línea
   doc.moveDown(0.3);
 });
 
