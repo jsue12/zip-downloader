@@ -20,7 +20,7 @@ app.get("/generar-reporte", async (req, res) => {
     // Import dinámico csvtojson (evita ERR_MODULE_NOT_FOUND)
     const csvtojson = (await import("csvtojson")).default;
 
-    // Descargar y parsear cada CSV (no fallar si uno falla; registramos el error)
+    // Descargar y parsear cada CSV
     const csvDataArr = [];
     for (const u of urls) {
       try {
@@ -41,7 +41,7 @@ app.get("/generar-reporte", async (req, res) => {
       }
     }
 
-    // Buscar brawny-letters (case-insensitive)
+    // Buscar brawny-letters (valores recibidos/entregados/saldo)
     const brawnyEntry = csvDataArr.find(c => c.url.toLowerCase().includes("brawny-letters"));
     if (!brawnyEntry || !brawnyEntry.data) {
       console.log("[error] no se encontró o no se pudo leer brawny-letters.csv");
@@ -53,27 +53,22 @@ app.get("/generar-reporte", async (req, res) => {
     const entregados = parseFloat(brawnyRow[keysB[1]] || 0);
     const saldo = parseFloat(brawnyRow[keysB[2]] || 0);
 
-    // Buscar vague-stage
+    // Buscar vague-stage (listado de estudiantes)
     const vagueEntry = csvDataArr.find(c => c.url.toLowerCase().includes("vague-stage"));
     const vagueRecords = (vagueEntry && vagueEntry.data) ? vagueEntry.data : [];
-    // ordenar A-Z por columna keys[0] (estudiante)
+
+    // Ordenar por nombre del estudiante (alfabético)
     vagueRecords.sort((a, b) => {
       const ka = Object.keys(a)[0];
       const kb = Object.keys(b)[0];
       return String(a[ka] || "").localeCompare(String(b[kb] || ""));
     });
 
-    // --- Crear PDF y enviarlo en stream al cliente ---
+    // --- Crear PDF ---
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Disposition", "attachment; filename=reporte.pdf");
 
     const doc = new PDFDocument({ margin: 50 });
-    // si ocurre error en doc
-    doc.on("error", (err) => {
-      console.error("[pdf error]", err);
-      if (!res.headersSent) res.status(500).send("Error generando el PDF");
-    });
-    // Pipe directo (más fiable)
     doc.pipe(res);
 
     // --- Encabezado ---
@@ -85,36 +80,36 @@ app.get("/generar-reporte", async (req, res) => {
       .font("Helvetica").text(` ${new Date().toLocaleDateString("es-EC")}`);
     doc.moveDown();
 
-    // --- Resumen Ejecutivo (brawny) ---
+    // --- Resumen Ejecutivo ---
     doc.font("Helvetica-Bold").fontSize(14).text("RESUMEN EJECUTIVO");
     doc.moveDown(0.5);
     const format = n => Number(n || 0).toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
     doc.font("Helvetica").fontSize(12);
     doc.text(`VALORES RECIBIDOS (+): ${format(recibidos)}`);
     doc.text(`VALORES ENTREGADOS (-): ${format(entregados)}`);
     doc.font("Helvetica-Bold").text(`SALDO TOTAL (=): ${format(saldo)}`);
-
-    // Línea divisoria
     doc.moveDown().moveTo(50, doc.y).lineTo(550, doc.y).stroke();
     doc.moveDown();
 
-    // --- Tabla vague-stage ---
+    // --- Tabla: Listado de estudiantes ---
     doc.font("Helvetica-Bold").fontSize(14).text("LISTADO DE ESTUDIANTES");
     doc.moveDown(0.5);
 
-    // Columnas: ESTUDIANTE, CUOTAS, ABONOS, SALDOS, ESTADO
     const tableTop = doc.y;
     const rowHeight = 20;
-    const columnPositions = [60, 250, 320, 400, 470];
-    const columnWidths = [190, 70, 70, 70, 90];
 
-    const headers = ["ESTUDIANTE", "CUOTAS", "ABONOS", "SALDOS", "ESTADO"];
+    // Posiciones y anchos de columnas (con columna N°)
+    const columnPositions = [50, 80, 270, 340, 420, 500];
+    const columnWidths = [30, 190, 70, 70, 70, 70];
+    const headers = ["N°", "ESTUDIANTE", "CUOTAS", "ABONOS", "SALDOS", "ESTADO"];
+
+    // Dibujar encabezados
     doc.font("Helvetica-Bold").fontSize(11).fillColor("black");
-    headers.forEach((h, i) => doc.text(h, columnPositions[i], tableTop + 5, { width: columnWidths[i], align: "center" }));
-
-    doc.moveTo(columnPositions[0], tableTop)
-      .lineTo(columnPositions[0] + columnWidths.reduce((a, b) => a + b, 0), tableTop)
+    headers.forEach((h, i) => {
+      doc.text(h, columnPositions[i], tableTop + 5, { width: columnWidths[i], align: "center" });
+    });
+    doc.moveTo(columnPositions[0], tableTop + rowHeight)
+      .lineTo(columnPositions[0] + columnWidths.reduce((a, b) => a + b, 0), tableTop + rowHeight)
       .stroke();
 
     let y = tableTop + rowHeight;
@@ -132,28 +127,28 @@ app.get("/generar-reporte", async (req, res) => {
       totalAbonos += abonos;
       totalSaldos += saldos;
 
-      // color segun estado
+      // Color por estado
       if (estado === "POR COBRAR") doc.fillColor("red");
       else if (estado === "REVISAR") doc.fillColor("blue");
       else doc.fillColor("black");
 
       doc.font("Helvetica").fontSize(10);
 
-      // fondo alternado
+      // Fondo alternado (gris suave)
       if (index % 2 === 0) {
         doc.rect(columnPositions[0], y, columnWidths.reduce((a, b) => a + b, 0), rowHeight)
-          .fillOpacity(0.04).fill("#d9d9d9").fillOpacity(1);
+          .fillOpacity(0.05).fill("#d9d9d9").fillOpacity(1);
       }
 
-      // texto celdas (cuotas/abonos/saldos alineados a la derecha)
-      doc.fillColor(doc._fillColor || "black"); // asegurar color
-      doc.text(estudiante, columnPositions[0], y + 5, { width: columnWidths[0], align: "left" });
-      doc.text(format(cuotas), columnPositions[1], y + 5, { width: columnWidths[1], align: "right" });
-      doc.text(format(abonos), columnPositions[2], y + 5, { width: columnWidths[2], align: "right" });
-      doc.text(format(saldos), columnPositions[3], y + 5, { width: columnWidths[3], align: "right" });
-      doc.text(estado, columnPositions[4], y + 5, { width: columnWidths[4], align: "center" });
+      // Texto de cada celda
+      doc.text(index + 1, columnPositions[0], y + 5, { width: columnWidths[0], align: "center" });
+      doc.text(estudiante, columnPositions[1], y + 5, { width: columnWidths[1], align: "left" });
+      doc.text(format(cuotas), columnPositions[2], y + 5, { width: columnWidths[2], align: "right" });
+      doc.text(format(abonos), columnPositions[3], y + 5, { width: columnWidths[3], align: "right" });
+      doc.text(format(saldos), columnPositions[4], y + 5, { width: columnWidths[4], align: "right" });
+      doc.text(estado, columnPositions[5], y + 5, { width: columnWidths[5], align: "center" });
 
-      // bordes de celdas
+      // Bordes
       let x = columnPositions[0];
       columnWidths.forEach(width => {
         doc.rect(x, y, width, rowHeight).stroke();
@@ -162,29 +157,31 @@ app.get("/generar-reporte", async (req, res) => {
 
       y += rowHeight;
 
-      // Salto de página con reencabezado
+      // Salto de página con encabezados reimpresos
       if (y > 750) {
         doc.addPage();
         const newTop = 50;
         doc.font("Helvetica-Bold").fontSize(11).fillColor("black");
-        headers.forEach((h, i) => doc.text(h, columnPositions[i], newTop + 5, { width: columnWidths[i], align: "center" }));
-        doc.moveTo(columnPositions[0], newTop)
-          .lineTo(columnPositions[0] + columnWidths.reduce((a, b) => a + b, 0), newTop)
+        headers.forEach((h, i) => {
+          doc.text(h, columnPositions[i], newTop + 5, { width: columnWidths[i], align: "center" });
+        });
+        doc.moveTo(columnPositions[0], newTop + rowHeight)
+          .lineTo(columnPositions[0] + columnWidths.reduce((a, b) => a + b, 0), newTop + rowHeight)
           .stroke();
         y = newTop + rowHeight;
       }
     });
 
-    // --- Fila total al final (fondo gris oscuro) ---
+    // --- Fila Total ---
     doc.font("Helvetica-Bold").fillColor("black");
     const fullWidth = columnWidths.reduce((a, b) => a + b, 0);
     doc.rect(columnPositions[0], y, fullWidth, rowHeight).fill("#bfbfbf");
     doc.fillColor("black");
-    doc.text("TOTAL GENERAL", columnPositions[0], y + 5, { width: columnWidths[0], align: "left" });
-    doc.text(format(totalCuotas), columnPositions[1], y + 5, { width: columnWidths[1], align: "right" });
-    doc.text(format(totalAbonos), columnPositions[2], y + 5, { width: columnWidths[2], align: "right" });
-    doc.text(format(totalSaldos), columnPositions[3], y + 5, { width: columnWidths[3], align: "right" });
-    doc.text("-", columnPositions[4], y + 5, { width: columnWidths[4], align: "center" });
+    doc.text("TOTAL GENERAL", columnPositions[1], y + 5, { width: columnWidths[1], align: "left" });
+    doc.text(format(totalCuotas), columnPositions[2], y + 5, { width: columnWidths[2], align: "right" });
+    doc.text(format(totalAbonos), columnPositions[3], y + 5, { width: columnWidths[3], align: "right" });
+    doc.text(format(totalSaldos), columnPositions[4], y + 5, { width: columnWidths[4], align: "right" });
+    doc.text("-", columnPositions[5], y + 5, { width: columnWidths[5], align: "center" });
 
     let x = columnPositions[0];
     columnWidths.forEach(width => {
@@ -195,18 +192,14 @@ app.get("/generar-reporte", async (req, res) => {
     y += rowHeight;
     doc.moveTo(columnPositions[0], y).lineTo(columnPositions[0] + fullWidth, y).stroke();
 
-    // Finalizar PDF (esto cierra el stream y Render/navegador recibirá el archivo)
+    // --- Finalizar PDF ---
     doc.end();
     console.log("[done] PDF stream ended");
 
   } catch (err) {
     console.error("[catch] error generando PDF:", err?.message || err);
-    // Si ya se enviaron headers, no podemos cambiar el status; de lo contrario enviamos texto
-    try {
-      if (!res.headersSent) res.status(500).send(`Error generando el PDF: ${err?.message || err}`);
-    } catch (sendErr) {
-      console.error("[secondary error] al enviar la respuesta de error:", sendErr);
-    }
+    if (!res.headersSent)
+      res.status(500).send(`Error generando el PDF: ${err?.message || err}`);
   }
 });
 
