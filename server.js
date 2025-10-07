@@ -211,6 +211,8 @@ app.get("/generar-reporte", async (req, res) => {
 
     let totalValor = 0;
     const tellingMatrix = tellingRecords.map(obj => Object.values(obj));
+
+    console.log(tellingMatrix[0]);
     
     tellingMatrix.forEach((row, i) => {
       // Acceder por índice según orden de columnas
