@@ -329,38 +329,39 @@ const maxBarWidth = 200;      // ancho máximo de la barra
 const barHeight = 14;         // altura por fila
 const labelWidth = 120;       // ancho reservado para nombres
 const spacing = 4;            // espacio entre nombre y barra
-const barChar = "█";          // carácter visual de la barra
+const barChar = "%ˆ";          // carácter visual de la barra
 
 // Fuente monoespaciada
 doc.font("Courier").fontSize(9).fillColor("black");
 
-// Dibujar gráfico
 vagueMatrix.forEach(({ estudiante, gasto }) => {
-  if (doc.y + barHeight > doc.page.height - 50) return; // detener si no cabe
+  if (doc.y + barHeight > doc.page.height - 50) return;
 
   const porcentaje = totalGasto > 0 ? (gasto / totalGasto) * 100 : 0;
   const barLen = maxGasto > 0 ? (gasto / maxGasto) * maxBarWidth : 0;
 
-  // texto del nombre (ajustado)
+  // Texto del nombre
   const nombre = estudiante.padEnd(18).substring(0, 18);
-
-  // nombre
   doc.text(nombre, marginLeft, doc.y, { width: labelWidth, align: "left" });
 
-  // posición inicial de la barra
+  // Posición inicial de la barra
   const barX = marginLeft + labelWidth + spacing;
 
-  // dibujar la barra (convertir longitud en caracteres aproximados)
-  const charCount = Math.max(1, Math.floor(barLen / 6));
-  const bar = barChar.repeat(charCount);
-  doc.text(bar, barX, doc.y, { width: maxBarWidth, align: "left" });
+  // Calcular número de repeticiones del patrón dentro de 200 pt
+  const charWidth = 6; // ancho aproximado por carácter en Courier 9pt
+  const patternWidth = pattern.length * charWidth;
+  const repeatCount = Math.max(1, Math.floor(barLen / patternWidth));
+  const barString = pattern.repeat(repeatCount);
 
-  // leyenda justo después de la barra
+  // Dibujar barra con el patrón %ˆ%ˆ%ˆ
+  doc.text(barString, barX, doc.y, { width: maxBarWidth, align: "left" });
+
+  // Leyenda justo después de la barra
   const legendX = barX + maxBarWidth + 6;
   const legend = `${formatNumber(gasto)} — ${porcentaje.toFixed(2)}%`;
   doc.text(legend, legendX, doc.y, { align: "left" });
 
-  // siguiente línea
+  // Avanzar a la siguiente fila
   doc.moveDown(0.3);
 });
 
