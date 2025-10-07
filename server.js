@@ -88,29 +88,29 @@ app.get("/generar-reporte", async (req, res) => {
 
     const tableTop = doc.y;
     const rowHeight = 20;
-    const colX = [50, 80, 270, 340, 420, 500, 570];
-    const colW = [30, 190, 70, 70, 70, 70, 0]; // última celda solo para margen
+    const colX = [50, 80, 270, 340, 410, 480, 550];
+    const colW = [30, 190, 70, 70, 70, 70]; // última celda solo para margen
 
     const headers = ["N°", "ESTUDIANTE", "CUOTAS", "ABONOS", "SALDOS", "ESTADO"];
     doc.font("Helvetica-Bold").fontSize(11).fillColor("black");
     headers.forEach((h, i) => {
-      doc.text(h, colX[i], tableTop + 5, { width: colW[i], align: "center" });
+      doc.text(h, colX[i]+3, tableTop + 5, { width: colW[i]-6, align: "center" });
     });
 
     doc.moveTo(colX[0], tableTop + rowHeight)
-      .lineTo(colX[5] + colW[5], tableTop + rowHeight)
+      .lineTo(colX[colX.length - 1] + colW[colW.length - 1], tableTop + rowHeight)
       .stroke();
 
     let y = tableTop + rowHeight;
     let totalCuotas = 0, totalAbonos = 0, totalSaldos = 0;
 
     vagueRecords.forEach((r, i) => {
-      const k = Object.keys(r);
+      const keys = Object.keys(r);
       const estudiante = r[k[0]] ?? "";
       const cuotas = parseFloat(r[k[1]] || 0);
       const abonos = parseFloat(r[k[2]] || 0);
       const saldos = parseFloat(r[k[3]] || 0);
-      const estado = (r[k[5]] || "").toString().toUpperCase();
+      const estado = (r[keys[keys.length - 1]] || "").toString().toUpperCase();
 
       totalCuotas += cuotas;
       totalAbonos += abonos;
@@ -125,19 +125,18 @@ app.get("/generar-reporte", async (req, res) => {
       // Fondo alterno
       if (i % 2 === 0) {
         doc.save();
-        doc.rect(colX[0], y, colX[5] + colW[5] - colX[0], rowHeight)
-          .fillOpacity(0.05)
-          .fill("#d9d9d9")
-          .restore();
+        doc.rect(colX[0], y, colX[colX.length - 1] + colW[colW.length - 1] - colX[0], rowHeight)
+          .fillOpacity(0.05).fill("#d9d9d9").restore();
       }
 
       // Texto de celdas
-      doc.text(i + 1, colX[0], y + 5, { width: colW[0], align: "center" });
-      doc.text(estudiante, colX[1], y + 5, { width: colW[1], align: "left" });
-      doc.text(format(cuotas), colX[2], y + 5, { width: colW[2], align: "right" });
-      doc.text(format(abonos), colX[3], y + 5, { width: colW[3], align: "right" });
-      doc.text(format(saldos), colX[4], y + 5, { width: colW[4], align: "right" });
-      doc.text(estado, colX[5], y + 5, { width: colW[5], align: "center" });
+      const pad = 3;
+      doc.text(i + 1, colX[0]+pad, y + 5, { width: colW[0]-pad*2, align: "center" });
+      doc.text(estudiante, colX[1]+pad, y + 5, { width: colW[1]-pad*2, align: "left" });
+      doc.text(format(cuotas), colX[2]+pad, y + 5, { width: colW[2]-pad*2, align: "right" });
+      doc.text(format(abonos), colX[3]+pad, y + 5, { width: colW[3]-pad*2, align: "right" });
+      doc.text(format(saldos), colX[4]+pad, y + 5, { width: colW[4]-pad*2, align: "right" });
+      doc.text(estado, colX[5]+pad, y + 5, { width: colW[5]-pad*2, align: "center" });
 
       // Bordes
       for (let j = 0; j < headers.length; j++) {
@@ -162,21 +161,23 @@ app.get("/generar-reporte", async (req, res) => {
     });
 
     // --- Línea divisoria antes del total ---
-    doc.moveTo(colX[0], y).lineTo(colX[5] + colW[5], y).stroke();
+    doc.moveTo(colX[0], y).lineTo(colX[colX.length - 1] + colW[colW.length - 1], y).stroke();
 
     // --- Fila total ---
     doc.font("Helvetica-Bold").fillColor("black");
-    const totalY = y;
-    doc.rect(colX[0], totalY, colX[5] + colW[5] - colX[0], rowHeight).fill("#bfbfbf");
+    //const totalY = y;
+    doc.rect(colX[0], y, colX[colX.length - 1] + colW[colW.length - 1] - colX[0], rowHeight).fill("#bfbfbf");
     doc.fillColor("black");
-    doc.text("TOTAL GENERAL", colX[1], totalY + 5, { width: colW[1], align: "left" });
-    doc.text(format(totalCuotas), colX[2], totalY + 5, { width: colW[2], align: "right" });
-    doc.text(format(totalAbonos), colX[3], totalY + 5, { width: colW[3], align: "right" });
-    doc.text(format(totalSaldos), colX[4], totalY + 5, { width: colW[4], align: "right" });
-    doc.text("-", colX[5], totalY + 5, { width: colW[5], align: "center" });
-
+    
+    const pad = 3;
+    doc.text("TOTAL GENERAL", colX[1] + pad, y + 5, { width: colW[1] - pad * 2, align: "left" });
+    doc.text(format(totalCuotas), colX[2] + pad, y + 5, { width: colW[2] - pad * 2, align: "right" });
+    doc.text(format(totalAbonos), colX[3] + pad, y + 5, { width: colW[3] - pad * 2, align: "right" });
+    doc.text(format(totalSaldos), colX[4] + pad, y + 5, { width: colW[4] - pad * 2, align: "right" });
+    doc.text("-", colX[5] + pad, y + 5, { width: colW[5] - pad * 2, align: "center" });
+    
     for (let j = 0; j < headers.length; j++) {
-      doc.rect(colX[j], totalY, colW[j], rowHeight).stroke();
+      doc.rect(colX[j], y, colW[j], rowHeight).stroke();
     }
 
     doc.end();
