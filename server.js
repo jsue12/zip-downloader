@@ -303,17 +303,16 @@ app.get("/generar-reporte", async (req, res) => {
 if (vagueRecords.length > 0) {
   const keys = Object.keys(vagueRecords[0]);
 
-  // Supongamos que:
-  // keys[2] = total cobrado
-  // keys[4] = total gastado
+  // Supongamos que la columna 4 (keys[4]) es el gasto
   const data = vagueRecords.map(row => ({
     nombre: String(row[keys[0]] ?? ""),
-    cobrado: parseFloat(row[keys[2]] || 0),
     gastado: parseFloat(row[keys[4]] || 0)
   }));
 
-  // Ordenar de mayor a menor gasto
+  // Ordenar de mayor a menor
   data.sort((a, b) => b.gastado - a.gastado);
+
+  const totalGasto = data.reduce((s, d) => s + d.gastado, 0);
 
   // Configuración del gráfico (QuickChart)
   const chartConfig = {
@@ -322,57 +321,51 @@ if (vagueRecords.length > 0) {
       labels: data.map(d => d.nombre),
       datasets: [
         {
-          label: "Cobrado",
-          data: data.map(d => d.cobrado),
-          backgroundColor: "rgba(54,162,235,0.7)",
-          borderColor: "rgba(54,162,235,1)",
-          borderWidth: 1,
-          barPercentage: 0.6
-        },
-        {
-          label: "Gastado",
+          label: "Gasto",
           data: data.map(d => d.gastado),
-          backgroundColor: "rgba(255,99,132,0.7)",
-          borderColor: "rgba(255,99,132,1)",
-          borderWidth: 1,
+          backgroundColor: "rgba(54,162,235,0.8)",
+          borderRadius: 6,
           barPercentage: 0.6
         }
       ]
     },
     options: {
-      indexAxis: "y", // horizontal
-      responsive: true,
+      indexAxis: "y", // HORIZONTAL
       plugins: {
-        legend: {
-          position: "bottom",
-          labels: { font: { size: 11 } }
-        },
+        legend: { display: false },
         title: {
           display: true,
-          text: "COBRADO VS GASTADO POR ESTUDIANTE",
+          text: "GASTO POR ESTUDIANTE",
           font: { size: 16 }
         },
-        tooltip: {
-          callbacks: {
-            label: ctx => `${ctx.dataset.label}: $${ctx.formattedValue}`
+        datalabels: {
+          anchor: "end",
+          align: "right",
+          color: "#333",
+          font: { size: 10 },
+          formatter: (value, ctx) => {
+            const porcentaje = ((value / totalGasto) * 100).toFixed(1);
+            return `$${value.toFixed(2)} – ${porcentaje}%`;
           }
         }
       },
+      layout: {
+        padding: { right: 30 }
+      },
       scales: {
         x: {
-          beginAtZero: true,
-          ticks: {
-            color: "#333",
-            callback: value => `$${value}`
-          },
-          grid: { color: "#ddd" }
+          display: false
         },
         y: {
-          ticks: { color: "#333", font: { size: 9 } },
+          ticks: {
+            color: "#333",
+            font: { size: 10 }
+          },
           grid: { display: false }
         }
       }
-    }
+    },
+    plugins: ["chartjs-plugin-datalabels"]
   };
 
   const chartUrl =
@@ -386,25 +379,17 @@ if (vagueRecords.length > 0) {
   doc.addPage();
   doc.font("Helvetica-Bold")
     .fontSize(16)
-    .text("REPORTE EJECUTIVO DE GASTOS", { align: "center" });
+    .text("REPORTE DE GASTOS POR ESTUDIANTE", { align: "center" });
   doc.moveDown(1);
 
   const startY = doc.y;
-  doc.image(Buffer.from(chartImage), 50, startY, { fit: [500, 350], align: "center" });
-  doc.moveDown(4);
+  doc.image(Buffer.from(chartImage), 40, startY, { fit: [520, 350], align: "center" });
+  doc.moveDown(3);
 
-  // Totales globales
-  const totalCobrado = data.reduce((s, d) => s + d.cobrado, 0);
-  const totalGastado = data.reduce((s, d) => s + d.gastado, 0);
-  const saldo = totalCobrado - totalGastado;
-
-  doc.font("Helvetica").fontSize(12);
-  doc.text(`Total Cobrado: $${totalCobrado.toFixed(2)}`, { align: "left" });
-  doc.text(`Total Gastado: $${totalGastado.toFixed(2)}`, { align: "left" });
-  doc.text(`Saldo Disponible: $${saldo.toFixed(2)}`, { align: "left" });
-  doc.moveDown(2);
-
-  doc.fontSize(9).fillColor("gray").text("Fuente: Sistema de registro de gastos estudiantiles", { align: "center" });
+  // Texto de total general
+  doc.font("Helvetica")
+    .fontSize(12)
+    .text(`Gasto total registrado: $${totalGasto.toFixed(2)}`, { align: "center" });
 }
 
 
