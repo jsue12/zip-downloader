@@ -300,113 +300,112 @@ app.get("/generar-reporte", async (req, res) => {
 
     //GRAFICOS
     
-    if (vagueRecords.length > 0) {
-      const keys = Object.keys(vagueRecords[0]);
-    
-      const dataBarras = vagueRecords.map(row => ({
-        nombre: String(row[keys[0]] ?? ""),
-        valor: parseFloat(row[keys[4]] || 0)
-      }));
-    
-      dataBarras.sort((a, b) => b.valor - a.valor);
-    
-      const totalGeneral = vagueRecords.reduce((s, r) => s + (parseFloat(r[keys[2]] || 0)), 0);
-      const totalGasto = dataBarras.reduce((s, r) => s + r.valor, 0);
-      const saldoDisponible = Math.max(0, totalGeneral - totalGasto);
-    
-      // ====== CONFIGURACIÓN CHART.JS ======
-      const chartConfigBar = {
-        type: "bar",
-        data: {
-          labels: dataBarras.map(d => d.nombre),
-          datasets: [{
-            label: "Gasto por estudiante",
-            data: dataBarras.map(d => d.valor),
-            backgroundColor: "rgba(54,162,235,0.7)",
-            borderColor: "rgba(54,162,235,1)",
-            borderWidth: 1
-          }]
+if (vagueRecords.length > 0) {
+  const keys = Object.keys(vagueRecords[0]);
+
+  // Supongamos que:
+  // keys[2] = total cobrado
+  // keys[4] = total gastado
+  const data = vagueRecords.map(row => ({
+    nombre: String(row[keys[0]] ?? ""),
+    cobrado: parseFloat(row[keys[2]] || 0),
+    gastado: parseFloat(row[keys[4]] || 0)
+  }));
+
+  // Ordenar de mayor a menor gasto
+  data.sort((a, b) => b.gastado - a.gastado);
+
+  // Configuración del gráfico (QuickChart)
+  const chartConfig = {
+    type: "bar",
+    data: {
+      labels: data.map(d => d.nombre),
+      datasets: [
+        {
+          label: "Cobrado",
+          data: data.map(d => d.cobrado),
+          backgroundColor: "rgba(54,162,235,0.7)",
+          borderColor: "rgba(54,162,235,1)",
+          borderWidth: 1,
+          barPercentage: 0.6
         },
-        options: {
-          plugins: {
-            legend: { display: false },
-            title: {
-              display: true,
-              text: "GASTOS POR ESTUDIANTE",
-              font: { size: 16 }
-            }
+        {
+          label: "Gastado",
+          data: data.map(d => d.gastado),
+          backgroundColor: "rgba(255,99,132,0.7)",
+          borderColor: "rgba(255,99,132,1)",
+          borderWidth: 1,
+          barPercentage: 0.6
+        }
+      ]
+    },
+    options: {
+      indexAxis: "y", // horizontal
+      responsive: true,
+      plugins: {
+        legend: {
+          position: "bottom",
+          labels: { font: { size: 11 } }
+        },
+        title: {
+          display: true,
+          text: "COBRADO VS GASTADO POR ESTUDIANTE",
+          font: { size: 16 }
+        },
+        tooltip: {
+          callbacks: {
+            label: ctx => `${ctx.dataset.label}: $${ctx.formattedValue}`
+          }
+        }
+      },
+      scales: {
+        x: {
+          beginAtZero: true,
+          ticks: {
+            color: "#333",
+            callback: value => `$${value}`
           },
-          scales: {
-            x: {
-              ticks: {
-                maxRotation: 45,
-                minRotation: 45,
-                color: "#333",
-                font: { size: 9 }
-              },
-              grid: { display: false }
-            },
-            y: {
-              beginAtZero: true,
-              ticks: { color: "#333" },
-              grid: { color: "#ddd" }
-            }
-          }
-        }
-      };
-    
-      const chartConfigPie = {
-        type: "pie",
-        data: {
-          labels: [...dataBarras.map(d => d.nombre), "Saldo disponible"],
-          datasets: [{
-            data: [...dataBarras.map(d => d.valor), saldoDisponible],
-            backgroundColor: [
-              "#36A2EB","#FF6384","#FFCE56","#4BC0C0",
-              "#9966FF","#FF9F40","#C9CBCF","#A3E1D4",
-              "#F7A6A6","#89CFF0","#FFD580","#B0E57C"
-            ]
-          }]
+          grid: { color: "#ddd" }
         },
-        options: {
-          plugins: {
-            title: {
-              display: true,
-              text: "DISTRIBUCIÓN DE GASTOS Y SALDO DISPONIBLE",
-              font: { size: 16 }
-            },
-            legend: {
-              position: "bottom",
-              labels: { font: { size: 9 } }
-            }
-          }
+        y: {
+          ticks: { color: "#333", font: { size: 9 } },
+          grid: { display: false }
         }
-      };
-    
-      // ====== URLs de imágenes QuickChart ======
-      const urlBar = "https://quickchart.io/chart?width=800&height=350&format=png&c=" +
-                     encodeURIComponent(JSON.stringify(chartConfigBar));
-      const urlPie = "https://quickchart.io/chart?width=600&height=300&format=png&c=" +
-                     encodeURIComponent(JSON.stringify(chartConfigPie));
-    
-      // ====== Agregar al PDF ======
-      doc.addPage();
-      doc.font("Helvetica-Bold").fontSize(14).text("GRÁFICOS DE GASTOS", { align: "center" });
-      doc.moveDown(1);
-    
-      const imgBar = await fetch(urlBar).then(r => r.arrayBuffer());
-      const imgPie = await fetch(urlPie).then(r => r.arrayBuffer());
-    
-      // Inserta el primero
-      const barY = doc.y;
-      doc.image(Buffer.from(imgBar), 60, barY, { fit: [480, 250], align: "center" });
-    
-      // Espaciado entre gráficos
-      const nextY = barY + 280;
-      doc.image(Buffer.from(imgPie), 100, nextY, { fit: [400, 250], align: "center" });
-    
-      doc.moveDown(6);
+      }
     }
+  };
+
+  const chartUrl =
+    "https://quickchart.io/chart?width=850&height=500&format=png&c=" +
+    encodeURIComponent(JSON.stringify(chartConfig));
+
+  // Descargar la imagen del gráfico
+  const chartImage = await fetch(chartUrl).then(r => r.arrayBuffer());
+
+  // ====== Agregar al PDF ======
+  doc.addPage();
+  doc.font("Helvetica-Bold")
+    .fontSize(16)
+    .text("REPORTE EJECUTIVO DE GASTOS", { align: "center" });
+  doc.moveDown(1);
+
+  const startY = doc.y;
+  doc.image(Buffer.from(chartImage), 50, startY, { fit: [500, 350], align: "center" });
+  doc.moveDown(4);
+
+  // Totales globales
+  const totalCobrado = data.reduce((s, d) => s + d.cobrado, 0);
+  const totalGastado = data.reduce((s, d) => s + d.gastado, 0);
+  const saldo = totalCobrado - totalGastado;
+
+  doc.font("Helvetica").fontSize(12);
+  doc.text(`Total Cobrado: $${totalCobrado.toFixed(2)}`, { align: "left" });
+  doc.text(`Total Gastado: $${totalGastado.toFixed(2)}`, { align: "left" });
+  doc.text(`Saldo Disponible: $${saldo.toFixed(2)}`, { align: "left" });
+  doc.moveDown(2);
+
+  doc.fontSize(9).fillColor("gray").text("Fuente: Sistema de registro de gastos estudiantiles", { align: "center" });
+}
 
 
   
