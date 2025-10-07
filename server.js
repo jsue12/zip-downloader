@@ -298,42 +298,7 @@ app.get("/generar-reporte", async (req, res) => {
     doc.text("TOTAL DE VALORES RECIBIDOS", tPos[0] + 4, tTextY, { width: totalWidth - 8, align: "right" });
     doc.text(formatNumber(totalValor), tPos[5] + 3, tTextY, { width: tCols.valor - 6, align: "right" });
   
-    // =============================
-    // GRAFICOS (BARRAS + SECTORES)
-    // =============================
-    
-    // Función para dibujar texto centrado
-    const centerText = (d, text, x, y, width) => {
-      const textWidth = d.widthOfString(text);
-      d.text(text, x + (width - textWidth) / 2, y);
-    };
-    
-    // Preparar datos desde vague-stage
-    if (vagueRecords.length > 0) {
-      const keys = Object.keys(vagueRecords[0]);
-    
-      const dataBarras = vagueRecords.map(row => ({
-        nombre: String(row[keys[0]] ?? ""),
-        valor: parseFloat(row[keys[4]] || 0)
-      }));
-    
-      // Orden descendente (mayor a menor)
-      dataBarras.sort((a, b) => b.valor - a.valor);
-    
-      // Datos totales para diagrama de pastel
-      const totalGeneral = vagueRecords.reduce((sum, row) => sum + (parseFloat(row[keys[2]] || 0)), 0);
-      const totalGasto = dataBarras.reduce((sum, r) => sum + r.valor, 0);
-      const saldoDisponible = totalGeneral - totalGasto;
-    
-      // Posiciones de los gráficos
-      doc.addPage();
-      let gx = 70, gy = 100;
-    
-    // =============================
-    // GRAFICOS (BARRAS + SECTORES)
-    // =============================
-    
-    // Función auxiliar
+    // Función auxiliar: convertir HSL a RGB
     const hslToRgb = (h, s, l) => {
       s /= 100; l /= 100;
       const k = n => (n + h / 30) % 12;
@@ -341,52 +306,58 @@ app.get("/generar-reporte", async (req, res) => {
       const f = n => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
       return [Math.round(255 * f(0)), Math.round(255 * f(8)), Math.round(255 * f(4))];
     };
-    
+
     if (vagueRecords.length > 0) {
       const keys = Object.keys(vagueRecords[0]);
-    
+
       const dataBarras = vagueRecords.map(row => ({
         nombre: String(row[keys[0]] ?? ""),
         valor: parseFloat(row[keys[4]] || 0)
       }));
-    
+
       // Orden descendente (mayor a menor)
       dataBarras.sort((a, b) => b.valor - a.valor);
-    
+
       const totalGeneral = vagueRecords.reduce((s, r) => s + (parseFloat(r[keys[2]] || 0)), 0);
       const totalGasto = dataBarras.reduce((s, r) => s + r.valor, 0);
       const saldoDisponible = totalGeneral - totalGasto;
-    
-      // ========== GRÁFICO DE BARRAS ==========
+
+      // Añadir nueva página para los gráficos
       doc.addPage();
-      doc.font("Helvetica-Bold").fontSize(13).text("GRÁFICO DE BARRAS - GASTOS POR ESTUDIANTE", { align: "center" });
+      doc.font("Helvetica-Bold").fontSize(13).text("GRÁFICOS DE GASTOS", { align: "center" });
       doc.moveDown(0.5);
       doc.moveTo(70, doc.y).lineTo(540, doc.y).stroke();
-    
+
+      // ======================
+      // GRÁFICO DE BARRAS
+      // ======================
+      doc.moveDown(1);
+      doc.font("Helvetica-Bold").fontSize(11).text("GASTOS POR ESTUDIANTE (Barras)", { align: "left" });
+
       const chartX = 70;
-      const chartY = doc.y + 40;
-      const barMaxHeight = 200;
+      const chartY = doc.y + 30;
+      const barMaxHeight = 180;
       const barWidth = 25;
       const gap = 15;
       const maxValue = Math.max(...dataBarras.map(d => d.valor));
       const chartBottom = chartY + barMaxHeight;
-    
+
       dataBarras.forEach((item, i) => {
         const barHeight = (item.valor / maxValue) * barMaxHeight;
         const x = chartX + i * (barWidth + gap);
         const y = chartBottom - barHeight;
-    
+
         const [r, g, b] = hslToRgb(i * 35, 65, 55);
         doc.save();
         doc.rect(x, y, barWidth, barHeight).fill(`rgb(${r},${g},${b})`).stroke();
         doc.restore();
-    
-        // Etiquetas
+
+        // Etiqueta del valor
         doc.fontSize(8).fillColor("black").text(formatNumber(item.valor), x - 5, y - 12, {
           width: barWidth + 10,
           align: "center"
         });
-    
+
         // Nombre rotado
         doc.save();
         doc.rotate(-45, { origin: [x + barWidth / 2, chartBottom + 10] });
@@ -396,27 +367,27 @@ app.get("/generar-reporte", async (req, res) => {
         });
         doc.restore();
       });
-    
-      // ========== GRÁFICO DE SECTORES ==========
-      doc.addPage();
-      doc.font("Helvetica-Bold").fontSize(13).text("DIAGRAMA DE SECTORES - DISTRIBUCIÓN DE GASTOS", { align: "center" });
+
+      // ======================
+      // GRÁFICO DE SECTORES
+      // ======================
+      doc.moveDown(8); // espacio debajo del gráfico de barras
+      doc.font("Helvetica-Bold").fontSize(11).text("DISTRIBUCIÓN DE GASTOS (Sectores)", { align: "left" });
       doc.moveDown(0.5);
-      doc.moveTo(70, doc.y).lineTo(540, doc.y).stroke();
-    
+
       const cx = 300;
-      const cy = 350;
-      const radius = 120;
-    
+      const cy = doc.y + 150;
+      const radius = 100;
+
       const allSlices = [...dataBarras, { nombre: "Saldo disponible", valor: saldoDisponible }];
       const sumTotal = allSlices.reduce((s, v) => s + v.valor, 0);
-    
+
       let startAngle = 0;
       allSlices.forEach((slice, i) => {
         const sliceAngle = (slice.valor / sumTotal) * Math.PI * 2;
         const endAngle = startAngle + sliceAngle;
-    
         const [r, g, b] = hslToRgb(i * 40, 65, 55);
-    
+
         // Dibuja sector
         doc.save();
         doc.moveTo(cx, cy);
@@ -424,18 +395,19 @@ app.get("/generar-reporte", async (req, res) => {
         doc.lineTo(cx, cy);
         doc.fill(`rgb(${r},${g},${b})`).stroke();
         doc.restore();
-    
+
         // Etiqueta
         const mid = startAngle + sliceAngle / 2;
         const labelX = cx + Math.cos(mid) * (radius + 25);
         const labelY = cy + Math.sin(mid) * (radius + 25);
-    
+
         doc.font("Helvetica").fontSize(9).fillColor("black")
           .text(`${slice.nombre} (${((slice.valor / sumTotal) * 100).toFixed(1)}%)`,
                 labelX - 30, labelY, { width: 80, align: "center" });
-    
+
         startAngle = endAngle;
       });
+    }
 
 
   
