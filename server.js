@@ -273,7 +273,7 @@ app.get("/generar-reporte", async (req, res) => {
     const totalTextY = ty + (tRowH - 10) / 2;
     
     doc.font("Helvetica-Bold").fontSize(9).fillColor("black");
-    doc.text("TOTAL", tPos[0] + 4, totalTextY, { width: totalWidth - 8, align: "right" });
+    doc.text("TOTAL DE VALORES RECIBIDOS", tPos[0] + 4, totalTextY, { width: totalWidth - 8, align: "right" });
     doc.text(formatNumber(totalValor), tPos[5] + 3, totalTextY, { width: tCols.valor - 6, align: "right" });
 
     // Finalizar PDF
