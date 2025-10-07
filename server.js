@@ -163,7 +163,7 @@ app.get("/generar-reporte", async (req, res) => {
         y = newHeaderY + rowHeight;
       }
 
-      if (i % 2 === 0) fillRect(doc, columnPositions[0], y, Object.values(colWidths).reduce((a, b) => a + b), rowHeight, "#e6e6e6");
+      if (i % 2 === 0) fillRect(doc, columnPositions[0], y, Object.values(colWidths).reduce((a, b) => a + b), rowHeight, "#fafafa");
 
       let cx = columnPositions[0];
       for (let c = 0; c < Object.values(colWidths).length; c++) {
@@ -194,7 +194,7 @@ app.get("/generar-reporte", async (req, res) => {
     }
 
     const fullTableWidth = Object.values(colWidths).reduce((a, b) => a + b);
-    fillRect(doc, columnPositions[0], y, fullTableWidth, rowHeight, "#fafafa");
+    fillRect(doc, columnPositions[0], y, fullTableWidth, rowHeight, "#e6e6e6");
     let tx = columnPositions[0];
     for (let c = 0; c < Object.values(colWidths).length; c++) {
       strokeRect(doc, tx, y, Object.values(colWidths)[c], rowHeight);
