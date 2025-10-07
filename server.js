@@ -92,20 +92,20 @@ app.get("/generar-reporte", async (req, res) => {
     }
 
     // --- Encabezado ---
-    doc.font("Helvetica-Bold").fontSize(18).text("REPORTE DE TRANSACCIONES", { align: "center" });
+    doc.font("Helvetica-Bold").fontSize(14).text("REPORTE DE TRANSACCIONES", { align: "center" });
     doc.moveDown();
-    doc.font("Helvetica-Bold").fontSize(12).text("TESORERO:", { continued: true })
+    doc.font("Helvetica-Bold").fontSize(11).text("TESORERO:", { continued: true })
       .font("Helvetica").text(" JUAN PABLO BARBA MEDINA");
     doc.font("Helvetica-Bold").text("FECHA DEL INFORME:", { continued: true })
       .font("Helvetica").text(` ${new Date().toLocaleDateString("es-EC")}`);
     doc.moveDown();
 
     // --- Resumen Ejecutivo (brawny) ---
-    doc.font("Helvetica-Bold").fontSize(14).text("RESUMEN EJECUTIVO");
+    doc.font("Helvetica-Bold").fontSize(12).text("RESUMEN EJECUTIVO");
     doc.moveDown(0.5);
     const format = formatNumber;
 
-    doc.font("Helvetica").fontSize(12);
+    doc.font("Helvetica").fontSize(11);
     doc.text(`VALORES RECIBIDOS (+): ${format(recibidos)}`);
     doc.text(`VALORES ENTREGADOS (-): ${format(entregados)}`);
     doc.font("Helvetica-Bold").text(`SALDO TOTAL (=): ${format(saldo)}`);
@@ -115,7 +115,7 @@ app.get("/generar-reporte", async (req, res) => {
     doc.moveDown();
 
     // --- Tabla vague-stage ---
-    doc.font("Helvetica-Bold").fontSize(14).text("LISTADO DE ESTUDIANTES");
+    doc.font("Helvetica-Bold").fontSize(12).text("LISTADO DE ESTUDIANTES");
     doc.moveDown(0.5);
 
     // Definir columnas (incluye N°)
@@ -149,7 +149,7 @@ app.get("/generar-reporte", async (req, res) => {
     for (let i = 0; i < headers.length; i++) {
       fillRect(doc, headerX[i], headerY, headerWidths[i], rowHeight, "#e6e6e6");
       strokeRect(doc, headerX[i], headerY, headerWidths[i], rowHeight);
-      doc.font("Helvetica-Bold").fontSize(10).fillColor("black");
+      doc.font("Helvetica-Bold").fontSize(9).fillColor("black");
       doc.text(headers[i], headerX[i] + 4, headerY + 6, { width: headerWidths[i] - 8, align: "center" });
     }
 
@@ -182,7 +182,7 @@ app.get("/generar-reporte", async (req, res) => {
         for (let j = 0; j < headers.length; j++) {
           fillRect(doc, headerX[j], 50, headerWidths[j], rowHeight, "#e6e6e6");
           strokeRect(doc, headerX[j], 50, headerWidths[j], rowHeight);
-          doc.font("Helvetica-Bold").fontSize(10).fillColor("black");
+          doc.font("Helvetica-Bold").fontSize(9).fillColor("black");
           doc.text(headers[j], headerX[j] + 4, 50 + 6, { width: headerWidths[j] - 8, align: "center" });
         }
         y = 50 + rowHeight;
@@ -203,7 +203,7 @@ app.get("/generar-reporte", async (req, res) => {
       }
 
       // Texto en celdas: todo negro por defecto
-      doc.font("Helvetica").fontSize(10).fillColor("black");
+      doc.font("Helvetica").fontSize(9).fillColor("black");
 
       // N°
       doc.text(String(i + 1), columnPositions[0] + 3, y + 6, { width: cellWidths[0] - 6, align: "center" });
@@ -257,10 +257,10 @@ app.get("/generar-reporte", async (req, res) => {
     }
 
     // Texto de totales en negrita y negro
-    doc.font("Helvetica-Bold").fontSize(10).fillColor("black");
+    doc.font("Helvetica-Bold").fontSize(9).fillColor("black");
     // "TOTAL GENERAL" en columna Estudiante (ocupando N° + Estudiante ancho)
     const leftSpanWidth = headerWidths[0] + headerWidths[1];
-    doc.text("TOTAL GENERAL", columnPositions[0] + 4, y + 6, { width: leftSpanWidth - 8, align: "left" });
+    doc.text("TOTAL GENERAL", columnPositions[1] + 4, y + 6, { width: leftSpanWidth - 8, align: "left" });
 
     // Totales numéricos alineados a la derecha
     doc.text(formatNumber(totalCuotas), columnPositions[2] + 3, y + 6, { width: headerWidths[2] - 6, align: "right" });
