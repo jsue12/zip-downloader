@@ -300,98 +300,44 @@ app.get("/generar-reporte", async (req, res) => {
 
     //GRAFICOS
     
-if (vagueRecords.length > 0) {
-  const keys = Object.keys(vagueRecords[0]);
-
-  // Supongamos que la columna 4 (keys[4]) es el gasto
-  const data = vagueRecords.map(row => ({
-    nombre: String(row[keys[0]] ?? ""),
-    gastado: parseFloat(row[keys[4]] || 0)
-  }));
-
-  // Ordenar de mayor a menor
-  data.sort((a, b) => b.gastado - a.gastado);
-
-  const totalGasto = data.reduce((s, d) => s + d.gastado, 0);
-
-  // Configuración del gráfico (QuickChart)
-  const chartConfig = {
-    type: "bar",
-    data: {
-      labels: data.map(d => d.nombre),
-      datasets: [
-        {
-          label: "Gasto",
-          data: data.map(d => d.gastado),
-          backgroundColor: "rgba(54,162,235,0.8)",
-          borderRadius: 6,
-          barPercentage: 0.6
-        }
-      ]
-    },
-    options: {
-      indexAxis: "y", // HORIZONTAL
-      plugins: {
-        legend: { display: false },
-        title: {
-          display: true,
-          text: "GASTO POR ESTUDIANTE",
-          font: { size: 16 }
-        },
-        datalabels: {
-          anchor: "end",
-          align: "right",
-          color: "#333",
-          font: { size: 10 },
-          formatter: (value, ctx) => {
-            const porcentaje = ((value / totalGasto) * 100).toFixed(1);
-            return `$${value.toFixed(2)} – ${porcentaje}%`;
-          }
-        }
-      },
-      layout: {
-        padding: { right: 30 }
-      },
-      scales: {
-        x: {
-          display: false
-        },
-        y: {
-          ticks: {
-            color: "#333",
-            font: { size: 10 }
-          },
-          grid: { display: false }
-        }
-      }
-    },
-    plugins: ["chartjs-plugin-datalabels"]
-  };
-
-  const chartUrl =
-    "https://quickchart.io/chart?width=850&height=500&format=png&c=" +
-    encodeURIComponent(JSON.stringify(chartConfig));
-
-  // Descargar la imagen del gráfico
-  const chartImage = await fetch(chartUrl).then(r => r.arrayBuffer());
-
-  // ====== Agregar al PDF ======
+if (doc.y + 100 > doc.page.height - 50) {
   doc.addPage();
-  doc.font("Helvetica-Bold")
-    .fontSize(16)
-    .text("REPORTE DE GASTOS POR ESTUDIANTE", { align: "center" });
-  doc.moveDown(1);
-
-  const startY = doc.y;
-  doc.image(Buffer.from(chartImage), 40, startY, { fit: [520, 350], align: "center" });
-  doc.moveDown(3);
-
-  // Texto de total general
-  doc.font("Helvetica")
-    .fontSize(12)
-    .text(`Gasto total registrado: $${totalGasto.toFixed(2)}`, { align: "center" });
+  doc.y = 50;
 }
 
+doc.moveDown(1);
+doc.font("Helvetica-Bold").fontSize(12).text("DASHBOARD DE GASTOS (VAGUE-STAGE)");
+doc.moveDown(0.5);
+
+// Extraer datos desde vague-stage
+const vagueMatrix = vagueRecords.map(row => {
+  const keys = Object.keys(row);
+  const estudiante = String(row[keys[0]] || "").trim();
+  const gasto = parseFloat(row[keys[4]] || 0); // 5ta columna
+  return { estudiante, gasto };
+}).filter(r => r.estudiante && !isNaN(r.gasto));
+
+// Ordenar de mayor a menor gasto
+vagueMatrix.sort((a, b) => b.gasto - a.gasto);
+
+// Calcular totales
+const totalGasto = vagueMatrix.reduce((sum, r) => sum + r.gasto, 0);
+const maxGasto = Math.max(...vagueMatrix.map(r => r.gasto));
+const barMaxWidth = 180; // ancho máximo de barra en caracteres visuales
+
+// Dibujar gráfico tipo consola
+vagueMatrix.forEach(({ estudiante, gasto }) => {
+  const porcentaje = totalGasto > 0 ? (gasto / totalGasto) * 100 : 0;
+  const barLength = Math.round((gasto / maxGasto) * barMaxWidth);
+  const bar = "█".repeat(Math.max(1, Math.floor(barLength / 6))); // escala visual
+
+  const linea = `${estudiante.padEnd(20)} | ${bar.padEnd(barMaxWidth / 6)} | ${formatNumber(gasto)} — ${porcentaje.toFixed(2)}%`;
+
+  // Si no hay espacio suficiente, detener el gráfico (sin salto de página)
+  if (doc.y + 15 > doc.page.height - 50) return;
+
+  doc.font("Courier").fontSize(9).fillColor("black").text(linea, { width: 500, align: "left" });
+});
 
   
     
