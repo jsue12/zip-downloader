@@ -216,6 +216,9 @@ app.get("/generar-reporte", async (req, res) => {
     doc.moveDown().moveTo(50, doc.y).lineTo(545, doc.y).stroke();
     doc.moveDown();
 
+    doc.font("Helvetica-Bold").fontSize(12).text("REPORTE DE COBROS", { align: "left" });
+    doc.moveDown();
+
     doc.end();
     console.log("[done] PDF stream ended");
 
