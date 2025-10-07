@@ -324,7 +324,7 @@ const maxGasto = Math.max(...vagueMatrix.map(r => r.gasto));
 
 const labelWidth = 18;
 const barMaxChars = 40;
-const barChar = "■"; // carácter sólido seguro
+const barChar = "\u2588"; // carácter sólido seguro
 const spacing = 3;
 
 doc.font("Courier").fontSize(9).fillColor("black");
