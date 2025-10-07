@@ -174,7 +174,7 @@ app.get("/generar-reporte", async (req, res) => {
     doc.text(formatNumber(totalAbonos), positions[3] + 3, y + 6, { width: columns[3] - 6, align: "right" });
     doc.text(formatNumber(totalSaldos), positions[4] + 3, y + 6, { width: columns[4] - 6, align: "right" });
     doc.text("", positions[5] + 3, y + 6, { width: columns[5] - 6, align: "center" });
-    doc.moveDown(2);
+    doc.moveDown(2.5);
 
     // =============================
     // TABLA DE TELLING-MATCH
@@ -219,8 +219,8 @@ app.get("/generar-reporte", async (req, res) => {
       const fechaRaw = String(row[0] || "");
       const estudiante = String(row[1] || "").trim();
       const banco = String(row[2] || "").trim();
-      const comp = String(row[4] || "");
-      const valora = parseFloat(String(row[3]).replace(/[^\d.-]/g, "")) || 0;
+      const comp = String(row[3] || "");
+      const valora = parseFloat(String(row[4]).replace(/[^\d.-]/g, "")) || 0;
       totalValor += valora;
     
       // Formatear fecha si es válida
