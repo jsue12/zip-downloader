@@ -21,7 +21,7 @@ app.get("/generar-reporte", async (req, res) => {
         const resp = await fetch(u);
         if (!resp.ok) continue;
         const text = await resp.text();
-        const json = await csvtojson().fromString(text);
+        const json = await csvtojson({ checkType: false }).fromString(text);
         csvDataArr.push({ url: u, data: json });
       } catch (err) {
         console.error(`[error] al descargar/parsear ${u}:`, err?.message);
@@ -93,15 +93,23 @@ app.get("/generar-reporte", async (req, res) => {
 
     const headers = ["N°", "ESTUDIANTE", "CUOTAS", "ABONOS", "SALDOS", "ESTADO"];
     doc.font("Helvetica-Bold").fontSize(11).fillColor("black");
-    headers.forEach((h, i) => {
-      doc.text(h, colX[i]+3, tableTop + 5, { width: colW[i]-6, align: "center" });
-    });
+    
+    let headerY = tableTop;
 
-    doc.moveTo(colX[0], tableTop + rowHeight)
-      .lineTo(colX[colX.length - 1] + colW[colW.length - 1], tableTop + rowHeight)
-      .stroke();
+    // Dibujar fondo y bordes de encabezado
+    for (let i = 0; i < headers.length; i++) {
+      doc.rect(colX[i], headerY, colW[i], rowHeight).fill("#e6e6e6").stroke();
+      doc.fillColor("black").text(headers[i], colX[i] + 3, headerY + 5, {
+        width: colW[i] - 6,
+        align: "center"
+      });
+    }
 
-    let y = tableTop + rowHeight;
+    // Línea bajo encabezado (termina al final exacto de la última columna)
+    const tableRightEdge = colX[colX.length - 1] + colW[colW.length - 1];
+    doc.moveTo(colX[0], headerY + rowHeight).lineTo(tableRightEdge, headerY + rowHeight).stroke();
+    
+    let y = headerY + rowHeight;
     let totalCuotas = 0, totalAbonos = 0, totalSaldos = 0;
 
     vagueRecords.forEach((r, i) => {
@@ -110,7 +118,7 @@ app.get("/generar-reporte", async (req, res) => {
       const cuotas = parseFloat(r[keys[1]] || 0);
       const abonos = parseFloat(r[keys[2]] || 0);
       const saldos = parseFloat(r[keys[3]] || 0);
-      const estado = (r[keys[keys.length - 1]] || "").toString().toUpperCase();
+      const estado = (r[keys[5]] ?? "").toString().trim().toUpperCase();
 
       totalCuotas += cuotas;
       totalAbonos += abonos;
@@ -120,62 +128,66 @@ app.get("/generar-reporte", async (req, res) => {
       if (estado === "POR COBRAR") color = "red";
       else if (estado === "REVISAR") color = "blue";
 
-      doc.font("Helvetica").fontSize(10).fillColor(color);
-
-      // Fondo alterno
+      // Fondo alternado gris claro
       if (i % 2 === 0) {
         doc.save();
-        doc.rect(colX[0], y, colX[colX.length - 1] + colW[colW.length - 1] - colX[0], rowHeight)
-          .fillOpacity(0.05).fill("#d9d9d9").restore();
+        doc.rect(colX[0], y, tableRightEdge - colX[0], rowHeight)
+          .fillOpacity(0.05)
+          .fill("#d9d9d9")
+          .restore();
       }
-
-      // Texto de celdas
+    
+      // Texto con padding
       const pad = 3;
-      doc.text(i + 1, colX[0]+pad, y + 5, { width: colW[0]-pad*2, align: "center" });
-      doc.text(estudiante, colX[1]+pad, y + 5, { width: colW[1]-pad*2, align: "left" });
-      doc.text(format(cuotas), colX[2]+pad, y + 5, { width: colW[2]-pad*2, align: "right" });
-      doc.text(format(abonos), colX[3]+pad, y + 5, { width: colW[3]-pad*2, align: "right" });
-      doc.text(format(saldos), colX[4]+pad, y + 5, { width: colW[4]-pad*2, align: "right" });
-      doc.text(estado, colX[5]+pad, y + 5, { width: colW[5]-pad*2, align: "center" });
-
-      // Bordes
+      doc.font("Helvetica").fontSize(10).fillColor(color);
+      doc.text(i + 1, colX[0] + pad, y + 5, { width: colW[0] - pad * 2, align: "center" });
+      doc.text(estudiante, colX[1] + pad, y + 5, { width: colW[1] - pad * 2, align: "left" });
+      doc.text(format(cuotas), colX[2] + pad, y + 5, { width: colW[2] - pad * 2, align: "right" });
+      doc.text(format(abonos), colX[3] + pad, y + 5, { width: colW[3] - pad * 2, align: "right" });
+      doc.text(format(saldos), colX[4] + pad, y + 5, { width: colW[4] - pad * 2, align: "right" });
+      doc.text(estado, colX[5] + pad, y + 5, { width: colW[5] - pad * 2, align: "center" });
+    
+      // Bordes exactos de celdas
       for (let j = 0; j < headers.length; j++) {
         doc.rect(colX[j], y, colW[j], rowHeight).stroke();
       }
-
+    
       y += rowHeight;
-
+    
       // Salto de página
       if (y > 750) {
         doc.addPage();
-        const top = 50;
-        doc.font("Helvetica-Bold").fontSize(11).fillColor("black");
-        headers.forEach((h, j) => {
-          doc.text(h, colX[j], top + 5, { width: colW[j], align: "center" });
-        });
-        doc.moveTo(colX[0], top + rowHeight)
-          .lineTo(colX[5] + colW[5], top + rowHeight)
-          .stroke();
-        y = top + rowHeight;
+        headerY = 50;
+    
+        // Redibujar encabezado con fondo y borde
+        for (let i = 0; i < headers.length; i++) {
+          doc.rect(colX[i], headerY, colW[i], rowHeight).fill("#e6e6e6").stroke();
+          doc.fillColor("black").text(headers[i], colX[i] + 3, headerY + 5, {
+            width: colW[i] - 6,
+            align: "center"
+          });
+        }
+    
+        doc.moveTo(colX[0], headerY + rowHeight).lineTo(tableRightEdge, headerY + rowHeight).stroke();
+        y = headerY + rowHeight;
       }
     });
-
-    // --- Línea divisoria antes del total ---
-    doc.moveTo(colX[0], y).lineTo(colX[colX.length - 1] + colW[colW.length - 1], y).stroke();
-
-    // --- Fila total ---
-    doc.font("Helvetica-Bold").fillColor("black");
-    //const totalY = y;
-    doc.rect(colX[0], y, colX[colX.length - 1] + colW[colW.length - 1] - colX[0], rowHeight).fill("#bfbfbf");
-    doc.fillColor("black");
     
+    // Línea antes del total
+    doc.moveTo(colX[0], y).lineTo(tableRightEdge, y).stroke();
+    
+    // Fila total con fondo gris oscuro
+    doc.font("Helvetica-Bold").fillColor("white");
+    doc.rect(colX[0], y, tableRightEdge - colX[0], rowHeight).fill("#666666");
     const pad = 3;
+    
     doc.text("TOTAL GENERAL", colX[1] + pad, y + 5, { width: colW[1] - pad * 2, align: "left" });
     doc.text(format(totalCuotas), colX[2] + pad, y + 5, { width: colW[2] - pad * 2, align: "right" });
     doc.text(format(totalAbonos), colX[3] + pad, y + 5, { width: colW[3] - pad * 2, align: "right" });
     doc.text(format(totalSaldos), colX[4] + pad, y + 5, { width: colW[4] - pad * 2, align: "right" });
     doc.text("-", colX[5] + pad, y + 5, { width: colW[5] - pad * 2, align: "center" });
     
+    // Bordes del total
     for (let j = 0; j < headers.length; j++) {
       doc.rect(colX[j], y, colW[j], rowHeight).stroke();
     }
