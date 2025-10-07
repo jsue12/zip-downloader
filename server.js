@@ -64,9 +64,12 @@ app.get("/generar-reporte", async (req, res) => {
     doc.moveDown();
 
     // --- Resumen Ejecutivo ---
-    const format = n => Number(n || 0).toLocaleString("es-ES", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
+    const format = n => {
+      const num = parseFloat(String(n).replace(/[^\d.-]/g, "")) || 0;
+      return num.toLocaleString("es-ES", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+        useGrouping: true
     });
     doc.font("Helvetica-Bold").fontSize(14).text("RESUMEN EJECUTIVO");
     doc.moveDown(0.5);
