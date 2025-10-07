@@ -126,7 +126,7 @@ app.get("/generar-reporte", async (req, res) => {
         fillRect(doc, positions[i], yPos, columns[i], rowHeight, "#e6e6e6");
         strokeRect(doc, positions[i], yPos, columns[i], rowHeight);
         doc.font("Helvetica-Bold").fontSize(10).fillColor("black")
-          .text(h, positions[i] + 4, yPos + 8, { width: columns[i] - 8, align: "center" });
+          .text(h, positions[i] + 4, yPos + 7, { width: columns[i] - 8, align: "center" });
       });
     };
 
@@ -150,7 +150,7 @@ app.get("/generar-reporte", async (req, res) => {
       let x = positions[0];
       columns.forEach((cw) => { strokeRect(doc, x, y, cw, rowHeight); x += cw; });
 
-      const textY = y + 8;
+      const textY = y + 7;
       doc.font("Helvetica").fontSize(10).fillColor("black");
       doc.text(String(i + 1), positions[0] + 3, textY, { width: columns[0] - 6, align: "center" });
       doc.text(estudiante, positions[1] + 4, textY, { width: columns[0] +columns[1] - 8, align: "left" });
@@ -163,17 +163,39 @@ app.get("/generar-reporte", async (req, res) => {
       y += rowHeight;
     });
 
-    // Totales
-    if (y + rowHeight > doc.page.height - 60) { doc.addPage(); y = 50; }
-    fillRect(doc, positions[0], y, columns.reduce((a, b) => a + b), rowHeight, "#e6e6e6");
-    let tx = positions[0];
-    columns.forEach((cw) => { strokeRect(doc, tx, y, cw, rowHeight); tx += cw; });
+    if (y + rowHeight > doc.page.height - 60) { 
+      doc.addPage(); 
+      y = 50; 
+    }
+    
+    // Cálculo de anchos combinados
+    const totalWidthAll = columns.reduce((a, b) => a + b); // ancho total
+    const firstTwoWidth = columns[0] + columns[1]; // N° + ESTUDIANTE
+    
+    // Fondo gris para toda la fila
+    fillRect(doc, positions[0], y, totalWidthAll, rowHeight, "#e6e6e6");
+    
+    // Bordes
+    // Celda combinada (N° + ESTUDIANTE)
+    strokeRect(doc, positions[0], y, firstTwoWidth, rowHeight);
+    
+    // Resto de celdas
+    let tx3 = positions[2];
+    for (let i = 2; i < columns.length; i++) {
+      strokeRect(doc, tx3, y, columns[i], rowHeight);
+      tx3 += columns[i];
+    }
+    
+    // Texto centrado verticalmente
+    const totalTextY = y + (rowHeight - 10) / 2;
+    
     doc.font("Helvetica-Bold").fontSize(10).fillColor("black");
-    doc.text("TOTAL GENERAL", positions[0] + 4, y + 6, { width: columns[0] - 8, align: "left" });
-    doc.text(formatNumber(totalCuotas), positions[2] + 3, y + 6, { width: columns[2] - 6, align: "right" });
-    doc.text(formatNumber(totalAbonos), positions[3] + 3, y + 6, { width: columns[3] - 6, align: "right" });
-    doc.text(formatNumber(totalSaldos), positions[4] + 3, y + 6, { width: columns[4] - 6, align: "right" });
-    doc.text(" ", positions[5] + 3, y + 6, { width: columns[5] - 6, align: "center" });
+    doc.text("TOTAL GENERAL", positions[0] + 4, totalTextY, { width: firstTwoWidth - 8, align: "left" });
+    doc.text(formatNumber(totalCuotas), positions[2] + 3, totalTextY, { width: columns[2] - 6, align: "right" });
+    doc.text(formatNumber(totalAbonos), positions[3] + 3, totalTextY, { width: columns[3] - 6, align: "right" });
+    doc.text(formatNumber(totalSaldos), positions[4] + 3, totalTextY, { width: columns[4] - 6, align: "right" });
+    doc.text(" ", positions[5] + 3, totalTextY, { width: columns[5] - 6, align: "center" });
+    
     doc.moveDown(1.5);
 
     // =============================
@@ -202,7 +224,7 @@ app.get("/generar-reporte", async (req, res) => {
         fillRect(doc, tPos[i], yPos, Object.values(tCols)[i], tRowH, "#e6e6e6");
         strokeRect(doc, tPos[i], yPos, Object.values(tCols)[i], tRowH);
         doc.font("Helvetica-Bold").fontSize(9).fillColor("black")
-          .text(h, tPos[i] + 4, yPos + 6, { width: Object.values(tCols)[i] - 8, align: "center" });
+          .text(h, tPos[i] + 4, yPos + 7, { width: Object.values(tCols)[i] - 8, align: "center" });
       });
     };
 
@@ -243,7 +265,7 @@ app.get("/generar-reporte", async (req, res) => {
       Object.values(tCols).forEach((cw) => { strokeRect(doc, tx2, ty, cw, tRowH); tx2 += cw; });
     
       // Texto en celdas
-      const tTextY = ty + 6;
+      const tTextY = ty + 7;
       doc.font("Helvetica").fontSize(9).fillColor("black");
       doc.text(String(i + 1), tPos[0] + 3, tTextY, { width: tCols.n - 6, align: "center" });
       doc.text(fecha, tPos[1] + 3, tTextY, { width: tCols.fecha - 6, align: "center" });
@@ -270,7 +292,7 @@ app.get("/generar-reporte", async (req, res) => {
     strokeRect(doc, tPos[5], ty, tCols.valor, tRowH);       // celda de valor
     
     // Texto centrado verticalmente
-    const totalTextY = ty + (tRowH - 10) / 2;
+    const totalTextY = ty + 7;
     
     doc.font("Helvetica-Bold").fontSize(9).fillColor("black");
     doc.text("TOTAL DE VALORES RECIBIDOS", tPos[0] + 4, totalTextY, { width: totalWidth - 8, align: "right" });
