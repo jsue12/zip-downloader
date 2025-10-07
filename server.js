@@ -173,7 +173,7 @@ app.get("/generar-reporte", async (req, res) => {
     doc.text(formatNumber(totalCuotas), positions[2] + 3, y + 6, { width: columns[2] - 6, align: "right" });
     doc.text(formatNumber(totalAbonos), positions[3] + 3, y + 6, { width: columns[3] - 6, align: "right" });
     doc.text(formatNumber(totalSaldos), positions[4] + 3, y + 6, { width: columns[4] - 6, align: "right" });
-    doc.text("-", positions[5] + 3, y + 6, { width: columns[5] - 6, align: "center" });
+    doc.text("", positions[5] + 3, y + 6, { width: columns[5] - 6, align: "center" });
     doc.moveDown(2);
 
     // =============================
@@ -185,7 +185,7 @@ app.get("/generar-reporte", async (req, res) => {
 
     const tMargin = 50;
     const tRowH = 22;
-    const tCols = { n: 35, fecha: 75, estudiante: 142, banco: 93, comprobante: 90, valor: 60 };
+    const tCols = { n: 35, fecha: 72, estudiante: 135, banco: 98, comprobante: 90, valor: 65 };
     const tPos = [
       tMargin,
       tMargin + tCols.n,
@@ -218,8 +218,8 @@ app.get("/generar-reporte", async (req, res) => {
       const estudiante = String(row[1] || "").trim();
       const banco = String(row[2] || "").trim();
       const comp = String(row[3] || "").trim();
-      const valor = parseFloat(row[4] || 0);
-      totalValor += valor;
+      const valora = parseFloat(row[4] || 0);
+      totalValor += valora;
     
       // Formatear fecha si es válida
       const fechaObj = new Date(fechaRaw);
@@ -250,7 +250,7 @@ app.get("/generar-reporte", async (req, res) => {
       doc.text(estudiante, tPos[2] + 4, tTextY, { width: tCols.estudiante - 8, align: "left" });
       doc.text(banco, tPos[3] + 4, tTextY, { width: tCols.banco - 8, align: "left" });
       doc.text(comp, tPos[4] + 4, tTextY, { width: tCols.comprobante - 8, align: "center" });
-      doc.text(formatNumber(valor), tPos[5] + 3, tTextY, { width: tCols.valor - 6, align: "right" });
+      doc.text(formatNumber(valora), tPos[5] + 3, tTextY, { width: tCols.valor - 6, align: "right" });
     
       ty += tRowH;
     });
