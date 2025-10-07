@@ -181,7 +181,7 @@ app.get("/generar-reporte", async (req, res) => {
     // =============================
     doc.font("Helvetica-Bold").fontSize(12);
     doc.text("TRANSACCIONES DE COBRO", 50, doc.y, { align: "left", width: 500 });
-    doc.moveDown(2);
+    doc.moveDown(1);
 
     const tMargin = 50;
     const tRowH = 22;
@@ -230,7 +230,7 @@ app.get("/generar-reporte", async (req, res) => {
       Object.values(tCols).forEach((cw) => { strokeRect(doc, tx2, ty, cw, tRowH); tx2 += cw; });
 
       const tTextY = ty + 6;
-      doc.font("Helvetica").fontSize(10).fillColor("black");
+      doc.font("Helvetica").fontSize(9).fillColor("black");
       doc.text(String(i + 1), tPos[0] + 3, tTextY, { width: tCols.n - 6, align: "center" });
       doc.text(fecha, tPos[1] + 3, tTextY, { width: tCols.fecha - 6, align: "center" });
       doc.text(estudiante, tPos[2] + 4, tTextY, { width: tCols.estudiante - 8, align: "left" });
