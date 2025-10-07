@@ -317,51 +317,49 @@ const vagueMatrix = vagueRecords.map(row => {
   return { estudiante, gasto };
 }).filter(r => r.estudiante && !isNaN(r.gasto));
 
-// Ordenar y calcular totales
 vagueMatrix.sort((a, b) => b.gasto - a.gasto);
-const totalGasto = vagueMatrix.reduce((s, r) => s + r.gasto, 0);
+const totalGasto = vagueMatrix.reduce((sum, r) => sum + r.gasto, 0);
 const maxGasto = Math.max(...vagueMatrix.map(r => r.gasto));
 
 // Parámetros visuales
-const labelWidth = 120;   // ancho reservado para nombre
-const barMaxWidth = 200;  // ancho máximo de la barra
-const barHeight = 8;      // altura de cada barra
-const spacing = 6;        // separación horizontal
+const marginLeft = 50;
+const labelWidth = 120;
+const barMaxWidth = 200;
+const barHeight = 8;
+const spacing = 6;
 
 doc.font("Courier").fontSize(9).fillColor("black");
 
-// Dibujar cada barra
 vagueMatrix.forEach(({ estudiante, gasto }) => {
-  if (doc.y + 20 > doc.page.height - 50) {
+  if (doc.y + 15 > doc.page.height - 50) {
     doc.addPage();
     doc.y = 50;
   }
 
+  const y = doc.y; // Guardamos posición base
   const porcentaje = totalGasto > 0 ? (gasto / totalGasto) * 100 : 0;
   const barLength = maxGasto > 0 ? (gasto / maxGasto) * barMaxWidth : 0;
 
-  // Nombre alineado a la izquierda
+  // === NOMBRE ===
   const nombre = estudiante.padEnd(18).substring(0, 18);
-  doc.text(nombre, marginLeft, doc.y, { width: labelWidth, align: "left" });
+  doc.text(nombre, marginLeft, y, { width: labelWidth, align: "left" });
 
-  // Coordenadas de la barra
+  // === BARRA ===
   const barX = marginLeft + labelWidth + spacing;
-  const barY = doc.y + 3;
+  const barY = y + 3;
+  doc.save()
+    .rect(barX, barY, barLength, barHeight)
+    .fillColor("#0074D9")
+    .fill()
+    .restore();
 
-  // Dibujar la barra (rectángulo)
-  doc.save();
-  doc.rect(barX, barY, barLength, barHeight)
-     .fillColor("#0074D9")   // color azul agradable
-     .fill();
-  doc.restore();
-
-  // Leyenda a continuación de la barra
+  // === LEYENDA ===
   const legendX = barX + barMaxWidth + 10;
   const legend = `${formatNumber(gasto)} — ${porcentaje.toFixed(2)}%`;
-  doc.fillColor("black").text(legend, legendX, doc.y, { align: "left" });
+  doc.fillColor("black").text(legend, legendX, y, { align: "left" });
 
-  // Siguiente fila
-  doc.moveDown(0.5);
+  // Avanzar a la siguiente fila manualmente
+  doc.moveDown(0.7);
 });
   
     
