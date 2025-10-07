@@ -324,37 +324,45 @@ app.get("/generar-reporte", async (req, res) => {
     const totalGasto = vagueMatrix.reduce((sum, r) => sum + r.gasto, 0);
     const maxGasto = Math.max(...vagueMatrix.map(r => r.gasto));
     
-    // Parámetros de diseño del gráfico
-    const graphX = 60;              // margen izquierdo
-    const graphWidth = 400;         // ancho máximo para la barra
-    const barHeight = 13;           // altura de línea por estudiante
-    const barChar = "█";            // carácter de barra
-    
-    doc.font("Courier").fontSize(9).fillColor("black");
-    
-    // Dibujar líneas del gráfico
-    vagueMatrix.forEach(({ estudiante, gasto }) => {
-      if (doc.y + barHeight > doc.page.height - 50) return; // detener si no hay espacio
-    
-      const porcentaje = totalGasto > 0 ? (gasto / totalGasto) * 100 : 0;
-      const barLen = maxGasto > 0 ? Math.round((gasto / maxGasto) * graphWidth) : 0;
-      const bar = barChar.repeat(Math.max(1, Math.floor(barLen / 6))); // escala visual controlada
-    
-      // Alinear texto
-      const nombre = estudiante.padEnd(22).substring(0, 22);
-      const valor = formatNumber(gasto).padStart(10);
-      const perc = `${porcentaje.toFixed(2)}%`.padStart(7);
-    
-      // Dibujar línea
-      doc.text(
-        `${nombre} | ${bar.padEnd(graphWidth / 6)} | ${valor} — ${perc}`,
-        graphX,
-        doc.y,
-        { width: 480, align: "left" }
-      );
-    
-      doc.moveDown(0.3);
-    });
+const marginLeft = 50;        // margen izquierdo
+const graphWidth = 495;       // ancho máximo permitido
+const barHeight = 14;         // altura por fila
+const labelWidth = 120;       // espacio reservado para nombre
+const barChar = "█";          // carácter de barra
+const spacing = 4;            // espacio entre nombre y barra
+
+// Fuente monoespaciada para alineación perfecta
+doc.font("Courier").fontSize(9).fillColor("black");
+
+// Dibujar gráfico
+vagueMatrix.forEach(({ estudiante, gasto }) => {
+  if (doc.y + barHeight > doc.page.height - 50) return; // detener si no cabe
+
+  const porcentaje = totalGasto > 0 ? (gasto / totalGasto) * 100 : 0;
+  const barLen = maxGasto > 0 ? (gasto / maxGasto) * (graphWidth - labelWidth - spacing - 80) : 0;
+
+  // texto del nombre (máximo 18 caracteres visibles)
+  const nombre = estudiante.padEnd(18).substring(0, 18);
+
+  // dibujar nombre
+  doc.text(nombre, marginLeft, doc.y, { width: labelWidth, align: "left" });
+
+  // posición inicial de la barra
+  const barX = marginLeft + labelWidth + spacing;
+  const barY = doc.y + 2;
+
+  // dibujar la barra como texto
+  const bar = barChar.repeat(Math.max(1, Math.floor(barLen / 6)));
+  doc.text(bar, barX, doc.y, { width: graphWidth - labelWidth - 150, align: "left" });
+
+  // leyenda justo después de la barra
+  const legendX = barX + (barLen / 6) * 6 + 6; // pequeña separación después de barra
+  const legend = `${formatNumber(gasto)} — ${porcentaje.toFixed(2)}%`;
+  doc.text(legend, legendX, doc.y, { align: "left" });
+
+  // avanzar a siguiente línea
+  doc.moveDown(0.3);
+});
 
   
     
