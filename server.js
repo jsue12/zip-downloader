@@ -166,7 +166,7 @@ app.get("/generar-reporte", async (req, res) => {
     // ===================
     // TABLA DE TELLING-MATCH
     // ===================
-    doc.font("Helvetica-Bold").fontSize(12).text("LISTADO DE COMPROBANTES");
+    doc.font("Helvetica-Bold").fontSize(12).text("TRANSACCIONES DE COBRO"), { align: "left" });
     doc.moveDown(0.5);
 
     const tMargin = 50;
