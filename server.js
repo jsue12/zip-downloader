@@ -55,9 +55,9 @@ app.get("/generar-reporte", async (req, res) => {
     doc.pipe(res);
 
     // --- Encabezado ---
-    doc.font("Helvetica-Bold").fontSize(18).text("REPORTE DE TRANSACCIONES", { align: "center" });
+    doc.font("Helvetica-Bold").fontSize(16).text("REPORTE DE TRANSACCIONES", { align: "center" });
     doc.moveDown();
-    doc.font("Helvetica-Bold").fontSize(12).text("TESORERO:", { continued: true })
+    doc.font("Helvetica-Bold").fontSize(11).text("TESORERO:", { continued: true })
       .font("Helvetica").text(" JUAN PABLO BARBA MEDINA");
     doc.font("Helvetica-Bold").text("FECHA DEL INFORME:", { continued: true })
       .font("Helvetica").text(` ${new Date().toLocaleDateString("es-EC")}`);
@@ -73,9 +73,9 @@ app.get("/generar-reporte", async (req, res) => {
       });
     };
       
-    doc.font("Helvetica-Bold").fontSize(14).text("RESUMEN EJECUTIVO");
+    doc.font("Helvetica-Bold").fontSize(12).text("RESUMEN EJECUTIVO");
     doc.moveDown(0.5);
-    doc.font("Helvetica").fontSize(12);
+    doc.font("Helvetica").fontSize(11);
     doc.text(`VALORES RECIBIDOS (+): ${format(recibidos)}`);
     doc.text(`VALORES ENTREGADOS (-): ${format(entregados)}`);
     doc.font("Helvetica-Bold").text(`SALDO TOTAL (=): ${format(saldo)}`);
@@ -83,7 +83,7 @@ app.get("/generar-reporte", async (req, res) => {
     doc.moveDown();
 
     // --- Tabla de estudiantes ---
-    doc.font("Helvetica-Bold").fontSize(14).text("LISTADO DE ESTUDIANTES");
+    doc.font("Helvetica-Bold").fontSize(12).text("LISTADO DE ESTUDIANTES");
     doc.moveDown(0.5);
     
     const tableTop = doc.y;
@@ -92,11 +92,7 @@ app.get("/generar-reporte", async (req, res) => {
     // Posiciones y anchos de columna (alineadas y contiguas)
     const colX = [50, 80, 270, 340, 410, 480, 550];
     const colW = [30, 190, 70, 70, 70, 70];
-    
-    // Encabezados con borde
-    const headers = ["N°", "ESTUDIANTE", "CUOTAS", "ABONOS", "SALDOS", "ESTADO"];
-    doc.font("Helvetica-Bold").fontSize(11).fillColor("black");
-    
+       
     let headerY = tableTop;
     
     // Dibujar fondo y bordes de encabezado
@@ -107,6 +103,10 @@ app.get("/generar-reporte", async (req, res) => {
         align: "center"
       });
     }
+
+    // Encabezados con borde
+    const headers = ["N°", "ESTUDIANTE", "CUOTAS", "ABONOS", "SALDOS", "ESTADO"];
+    doc.font("Helvetica-Bold").fontSize(11).fillColor("black");
     
     // Línea bajo encabezado (termina al final exacto de la última columna)
     const tableRightEdge = colX[colX.length - 1] + colW[colW.length - 1];
@@ -122,7 +122,7 @@ app.get("/generar-reporte", async (req, res) => {
       const cuotas = parseFloat(r[keys[1]] || 0);
       const abonos = parseFloat(r[keys[2]] || 0);
       const saldos = parseFloat(r[keys[3]] || 0);
-      const estado = (r[keys[keys.length - 1]] || "").toString().toUpperCase();
+      const estado = (r[keys[5]] || "").toString().toUpperCase();
     
       totalCuotas += cuotas;
       totalAbonos += abonos;
