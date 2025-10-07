@@ -70,7 +70,9 @@ app.get("/generar-reporte", async (req, res) => {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
         useGrouping: true
-    });
+      });
+    };
+      
     doc.font("Helvetica-Bold").fontSize(14).text("RESUMEN EJECUTIVO");
     doc.moveDown(0.5);
     doc.font("Helvetica").fontSize(12);
