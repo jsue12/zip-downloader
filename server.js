@@ -292,11 +292,11 @@ app.get("/generar-reporte", async (req, res) => {
     strokeRect(doc, tPos[5], ty, tCols.valor, tRowH);       // celda de valor
     
     // Texto centrado verticalmente
-    const totalTextY = ty + 4;
+    const tTextY = ty + 4;
     
     doc.font("Helvetica-Bold").fontSize(9).fillColor("black");
-    doc.text("TOTAL DE VALORES RECIBIDOS", tPos[0] + 4, totalTextY, { width: totalWidth - 8, align: "right" });
-    doc.text(formatNumber(totalValor), tPos[5] + 3, totalTextY, { width: tCols.valor - 6, align: "right" });
+    doc.text("TOTAL DE VALORES RECIBIDOS", tPos[0] + 4, tTextY, { width: totalWidth - 8, align: "right" });
+    doc.text(formatNumber(totalValor), tPos[5] + 3, tTextY, { width: tCols.valor - 6, align: "right" });
 
     // Finalizar PDF
     doc.end();
