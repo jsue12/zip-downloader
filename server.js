@@ -166,6 +166,7 @@ app.get("/generar-reporte", async (req, res) => {
     // TABLA DE TELLING-MATCH
     // ===================
     // 🔹 CORRECCIÓN 2: Alinear texto a la izquierda
+    doc.moveTo(50, doc.y)
     doc.font("Helvetica-Bold").fontSize(12).text("TRANSACCIONES DE COBRO", { align: "left" });
     doc.moveDown(0.5);
 
