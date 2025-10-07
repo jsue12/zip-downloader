@@ -128,12 +128,12 @@ app.get("/generar-reporte", async (req, res) => {
     // Definir columnas (incluye N°)
     const marginLeft = 50;
     const colWidths = {
-      nro: 40,
-      estudiante: 130,
-      cuotas: 70,
-      abonos: 70,
-      saldos: 70,
-      estado: 80
+      nro: 41,
+      estudiante: 160,
+      cuotas: 71,
+      abonos: 71,
+      saldos: 71,
+      estado: 81
     };
     // calcular posiciones X
     const columnPositions = [
@@ -156,7 +156,7 @@ app.get("/generar-reporte", async (req, res) => {
     for (let i = 0; i < headers.length; i++) {
       fillRect(doc, headerX[i], headerY, headerWidths[i], rowHeight, "#e6e6e6");
       strokeRect(doc, headerX[i], headerY, headerWidths[i], rowHeight);
-      doc.font("Helvetica-Bold").fontSize(10).fillColor("black");
+      doc.font("Helvetica-Bold").fontSize(9).fillColor("black");
       doc.text(headers[i], headerX[i] + 4, headerY + 6, { width: headerWidths[i] - 8, align: "center" });
     }
 
@@ -189,7 +189,7 @@ app.get("/generar-reporte", async (req, res) => {
         for (let j = 0; j < headers.length; j++) {
           fillRect(doc, headerX[j], 50, headerWidths[j], rowHeight, "#e6e6e6");
           strokeRect(doc, headerX[j], 50, headerWidths[j], rowHeight);
-          doc.font("Helvetica-Bold").fontSize(10).fillColor("black");
+          doc.font("Helvetica-Bold").fontSize(9).fillColor("black");
           doc.text(headers[j], headerX[j] + 4, 50 + 6, { width: headerWidths[j] - 8, align: "center" });
         }
         y = 50 + rowHeight;
@@ -210,7 +210,7 @@ app.get("/generar-reporte", async (req, res) => {
       }
 
       // Texto en celdas: todo negro por defecto
-      doc.font("Helvetica").fontSize(10).fillColor("black");
+      doc.font("Helvetica").fontSize(9).fillColor("black");
 
       // N°
       doc.text(String(i + 1), columnPositions[0] + 3, y + 6, { width: cellWidths[0] - 6, align: "center" });
@@ -247,7 +247,7 @@ app.get("/generar-reporte", async (req, res) => {
       for (let j = 0; j < headers.length; j++) {
         fillRect(doc, headerX[j], 50, headerWidths[j], rowHeight, "#e6e6e6");
         strokeRect(doc, headerX[j], 50, headerWidths[j], rowHeight);
-        doc.font("Helvetica-Bold").fontSize(10).fillColor("black");
+        doc.font("Helvetica-Bold").fontSize(9).fillColor("black");
         doc.text(headers[j], headerX[j] + 4, 50 + 6, { width: headerWidths[j] - 8, align: "center" });
       }
       y = 50 + rowHeight;
