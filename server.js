@@ -75,7 +75,14 @@ app.get("/generar-reporte", async (req, res) => {
     doc.pipe(res);
 
     // --- Helpers ---
-    const formatNumber = n => Number(n || 0).toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const formatNumber = n => {
+      const num = parseFloat(String(n).replace(/[^\d.-]/g, "")) || 0;
+      return num.toLocaleString("es-ES", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+        useGrouping: true
+      });
+    };
 
     // Dibuja rect (relleno + borde) sin afectar el color del texto posterior
     function fillRect(doc, x, y, w, h, fillColor) {
