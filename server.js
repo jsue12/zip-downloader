@@ -224,7 +224,7 @@ app.get("/generar-reporte", async (req, res) => {
         fillRect(doc, tPos[i], yPos, Object.values(tCols)[i], tRowH, "#e6e6e6");
         strokeRect(doc, tPos[i], yPos, Object.values(tCols)[i], tRowH);
         doc.font("Helvetica-Bold").fontSize(9).fillColor("black")
-          .text(h, tPos[i] + 4, yPos + 8, { width: Object.values(tCols)[i] - 8, align: "center" });
+          .text(h, tPos[i] + 4, yPos + 7.5, { width: Object.values(tCols)[i] - 8, align: "center" });
       });
     };
 
@@ -265,7 +265,7 @@ app.get("/generar-reporte", async (req, res) => {
       Object.values(tCols).forEach((cw) => { strokeRect(doc, tx2, ty, cw, tRowH); tx2 += cw; });
     
       // Texto en celdas
-      const tTextY = ty + 8;
+      const tTextY = ty + 7.5;
       doc.font("Helvetica").fontSize(9).fillColor("black");
       doc.text(String(i + 1), tPos[0] + 3, tTextY, { width: tCols.n - 6, align: "center" });
       doc.text(fecha, tPos[1] + 3, tTextY, { width: tCols.fecha - 6, align: "center" });
@@ -292,7 +292,7 @@ app.get("/generar-reporte", async (req, res) => {
     strokeRect(doc, tPos[5], ty, tCols.valor, tRowH);       // celda de valor
     
     // Texto centrado verticalmente
-    const tTextY = ty + 8;
+    const tTextY = ty + 7.5;
     
     doc.font("Helvetica-Bold").fontSize(9).fillColor("black");
     doc.text("TOTAL DE VALORES RECIBIDOS", tPos[0] + 4, tTextY, { width: totalWidth - 8, align: "right" });
