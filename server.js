@@ -8,14 +8,13 @@ app.get("/generar-reporte", async (req, res) => {
   console.log("[start] /generar-reporte request received");
   try {
     const urlsParam = req.query.url;
-    if (!urlsParam) {
+    if (!urlsParam)
       return res.status(400).send("Error: Debes incluir el parámetro 'url' con las URLs separadas por comas.");
-    }
 
     const urls = urlsParam.split(",").map(u => u.trim()).filter(Boolean);
     const csvtojson = (await import("csvtojson")).default;
-
     const csvDataArr = [];
+
     for (const u of urls) {
       try {
         const resp = await fetch(u);
@@ -28,11 +27,9 @@ app.get("/generar-reporte", async (req, res) => {
       }
     }
 
-    // Buscar brawny-letters
     const brawnyEntry = csvDataArr.find(c => c.url.toLowerCase().includes("brawny-letters"));
-    if (!brawnyEntry || !brawnyEntry.data) {
+    if (!brawnyEntry || !brawnyEntry.data)
       return res.status(404).send("No se encontró o no se pudo leer brawny-letters.csv");
-    }
 
     const brawnyRow = brawnyEntry.data[0] || {};
     const keysB = Object.keys(brawnyRow);
@@ -40,35 +37,21 @@ app.get("/generar-reporte", async (req, res) => {
     const entregados = parseFloat(brawnyRow[keysB[1]] || 0);
     const saldo = parseFloat(brawnyRow[keysB[2]] || 0);
 
-    // Buscar vague-stage
     const vagueEntry = csvDataArr.find(c => c.url.toLowerCase().includes("vague-stage"));
     const vagueRecords = vagueEntry?.data || [];
-    vagueRecords.sort((a, b) => {
-      const ka = Object.keys(a)[0];
-      const kb = Object.keys(b)[0];
-      return String(a[ka] || "").localeCompare(String(b[kb] || ""));
-    });
+    vagueRecords.sort((a, b) => String(Object.values(a)[0]).localeCompare(String(Object.values(b)[0])));
 
-    // Buscar telling-match
     const tellingEntry = csvDataArr.find(c => c.url.toLowerCase().includes("telling-match"));
     const tellingRecords = tellingEntry?.data || [];
-    tellingRecords.sort((a, b) => {
-      const fechaA = new Date(a["Fecha"] || a["fecha"] || "");
-      const fechaB = new Date(b["Fecha"] || b["fecha"] || "");
-      return fechaA - fechaB;
-    });
+    tellingRecords.sort((a, b) => new Date(a["Fecha"]) - new Date(b["Fecha"]));
 
-    // Crear PDF
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Disposition", "attachment; filename=reporte.pdf");
     const doc = new PDFDocument({ margin: 50, size: "A4" });
     doc.pipe(res);
 
-    // Helpers
-    const formatNumber = n => {
-      const num = parseFloat(String(n).replace(/[^\d.-]/g, "")) || 0;
-      return num.toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    };
+    const formatNumber = n => (parseFloat(String(n).replace(/[^\d.-]/g, "")) || 0)
+      .toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const fillRect = (d, x, y, w, h, c) => d.save().rect(x, y, w, h).fill(c).restore();
     const strokeRect = (d, x, y, w, h) => d.save().strokeColor("#000").rect(x, y, w, h).stroke().restore();
 
@@ -91,9 +74,7 @@ app.get("/generar-reporte", async (req, res) => {
     doc.moveDown().moveTo(50, doc.y).lineTo(545, doc.y).stroke();
     doc.moveDown();
 
-    // ===================
-    // TABLA DE VAGUE-STAGE
-    // ===================
+    // Tabla vague-stage
     doc.font("Helvetica-Bold").fontSize(12).text("LISTADO DE ESTUDIANTES");
     doc.moveDown(0.5);
 
@@ -107,7 +88,7 @@ app.get("/generar-reporte", async (req, res) => {
     const rowHeight = 22;
     const headers = ["N°", "ESTUDIANTE", "CUOTAS", "ABONOS", "SALDOS", "ESTADO"];
 
-    const drawHeaders = (yPos) => {
+    const drawHeaders = yPos => {
       headers.forEach((h, i) => {
         fillRect(doc, positions[i], yPos, columns[i], rowHeight, "#e6e6e6");
         strokeRect(doc, positions[i], yPos, columns[i], rowHeight);
@@ -122,19 +103,19 @@ app.get("/generar-reporte", async (req, res) => {
     let totalCuotas = 0, totalAbonos = 0, totalSaldos = 0;
 
     vagueRecords.forEach((row, i) => {
-      const keys = Object.keys(row);
-      const estudiante = String(row[keys[0]] ?? "");
-      const cuotas = parseFloat(row[keys[1]] || 0);
-      const abonos = parseFloat(row[keys[2]] || 0);
-      const saldos = parseFloat(row[keys[3]] || 0);
-      const estado = String(row[keys[5]] ?? "").trim().toUpperCase();
-
+      const vals = Object.values(row);
+      const estudiante = vals[0] || "";
+      const cuotas = parseFloat(vals[1] || 0);
+      const abonos = parseFloat(vals[2] || 0);
+      const saldos = parseFloat(vals[3] || 0);
+      const estado = String(vals[5] || "").trim().toUpperCase();
       totalCuotas += cuotas; totalAbonos += abonos; totalSaldos += saldos;
+
       if (y + rowHeight > doc.page.height - 60) { doc.addPage(); y = 50; drawHeaders(y); y += rowHeight; }
       if (i % 2 === 0) fillRect(doc, positions[0], y, columns.reduce((a, b) => a + b), rowHeight, "#fafafa");
 
       let x = positions[0];
-      columns.forEach((cw) => { strokeRect(doc, x, y, cw, rowHeight); x += cw; });
+      columns.forEach(cw => { strokeRect(doc, x, y, cw, rowHeight); x += cw; });
 
       const textY = y + 6;
       doc.font("Helvetica").fontSize(10).fillColor("black");
@@ -143,73 +124,63 @@ app.get("/generar-reporte", async (req, res) => {
       doc.text(formatNumber(cuotas), positions[2] + 3, textY, { width: columns[2] - 6, align: "right" });
       doc.text(formatNumber(abonos), positions[3] + 3, textY, { width: columns[3] - 6, align: "right" });
       doc.text(formatNumber(saldos), positions[4] + 3, textY, { width: columns[4] - 6, align: "right" });
-
       doc.fillColor(estado === "POR COBRAR" ? "red" : estado === "REVISAR" ? "blue" : "black");
       doc.text(estado, positions[5] + 3, textY, { width: columns[5] - 6, align: "center" });
       y += rowHeight;
     });
 
-    // Totales
+    // Totales con divisiones
     if (y + rowHeight > doc.page.height - 60) { doc.addPage(); y = 50; }
-    const totalWidth = columns.reduce((a, b) => a + b);
-    fillRect(doc, positions[0], y, totalWidth, rowHeight, "#e6e6e6");
-    strokeRect(doc, positions[0], y, totalWidth, rowHeight);
+    fillRect(doc, positions[0], y, columns.reduce((a, b) => a + b), rowHeight, "#e6e6e6");
+    let tx = positions[0];
+    columns.forEach(cw => { strokeRect(doc, tx, y, cw, rowHeight); tx += cw; });
     doc.font("Helvetica-Bold").fontSize(10).fillColor("black");
     doc.text("TOTAL GENERAL", positions[1] + 4, y + 6, { width: columns[1] - 8, align: "left" });
     doc.text(formatNumber(totalCuotas), positions[2] + 3, y + 6, { width: columns[2] - 6, align: "right" });
     doc.text(formatNumber(totalAbonos), positions[3] + 3, y + 6, { width: columns[3] - 6, align: "right" });
     doc.text(formatNumber(totalSaldos), positions[4] + 3, y + 6, { width: columns[4] - 6, align: "right" });
     doc.text("-", positions[5] + 3, y + 6, { width: columns[5] - 6, align: "center" });
-
     doc.moveDown(2);
 
-    // ===================
-    // TABLA DE TELLING-MATCH
-    // ===================
-    doc.font("Helvetica-Bold").fontSize(12).text("TRANSACCIONES DE COBRO");
+    // Tabla telling-match
+    doc.font("Helvetica-Bold").fontSize(12).text("TRANSACCIONES DE COBRO", { align: "left" });
     doc.moveDown(0.5);
 
-    const tMargin = 50;
-    const tRowH = 22;
     const tCols = { n: 35, fecha: 80, estudiante: 140, banco: 90, comprobante: 90, valor: 60 };
-    const tPos = [
-      tMargin,
-      tMargin + tCols.n,
-      tMargin + tCols.n + tCols.fecha,
-      tMargin + tCols.n + tCols.fecha + tCols.estudiante,
-      tMargin + tCols.n + tCols.fecha + tCols.estudiante + tCols.banco,
-      tMargin + tCols.n + tCols.fecha + tCols.estudiante + tCols.banco + tCols.comprobante
-    ];
+    const tPos = [50, 85, 165, 305, 395, 485];
     const tHeaders = ["N°", "FECHA", "ESTUDIANTE", "BANCO", "# COMPROBANTE", "VALOR"];
     let ty = doc.y;
 
-    const drawTellingHeaders = (yPos) => {
+    const drawTellingHeaders = yPos => {
       tHeaders.forEach((h, i) => {
-        fillRect(doc, tPos[i], yPos, Object.values(tCols)[i], tRowH, "#e6e6e6");
-        strokeRect(doc, tPos[i], yPos, Object.values(tCols)[i], tRowH);
+        fillRect(doc, tPos[i], yPos, Object.values(tCols)[i], rowHeight, "#e6e6e6");
+        strokeRect(doc, tPos[i], yPos, Object.values(tCols)[i], rowHeight);
         doc.font("Helvetica-Bold").fontSize(9).fillColor("black")
           .text(h, tPos[i] + 4, yPos + 6, { width: Object.values(tCols)[i] - 8, align: "center" });
       });
     };
 
     drawTellingHeaders(ty);
-    ty += tRowH;
-
+    ty += rowHeight;
     let totalValor = 0;
 
     tellingRecords.forEach((r, i) => {
-      const fecha = String(r["Fecha"] || "");
+      let fechaRaw = String(r["Fecha"] || "");
+      let fechaObj = new Date(fechaRaw);
+      let fecha = isNaN(fechaObj)
+        ? fechaRaw
+        : `${String(fechaObj.getDate()).padStart(2, "0")}-${String(fechaObj.getMonth() + 1).padStart(2, "0")}-${fechaObj.getFullYear()}`;
       const estudiante = String(r["Estudiante"] || "");
       const banco = String(r["Banco"] || "");
       const comp = String(r["# comprobante"] || r["Comprobante"] || "");
       const valor = parseFloat(r["Valor"] || 0);
       totalValor += valor;
 
-      if (ty + tRowH > doc.page.height - 60) { doc.addPage(); ty = 50; drawTellingHeaders(ty); ty += tRowH; }
-      if (i % 2 === 0) fillRect(doc, tPos[0], ty, 495, tRowH, "#fafafa");
+      if (ty + rowHeight > doc.page.height - 60) { doc.addPage(); ty = 50; drawTellingHeaders(ty); ty += rowHeight; }
+      if (i % 2 === 0) fillRect(doc, tPos[0], ty, 495, rowHeight, "#fafafa");
 
       let tx = tPos[0];
-      Object.values(tCols).forEach((cw) => { strokeRect(doc, tx, ty, cw, tRowH); tx += cw; });
+      Object.values(tCols).forEach(cw => { strokeRect(doc, tx, ty, cw, rowHeight); tx += cw; });
 
       const tTextY = ty + 6;
       doc.font("Helvetica").fontSize(10).fillColor("black");
@@ -219,15 +190,12 @@ app.get("/generar-reporte", async (req, res) => {
       doc.text(banco, tPos[3] + 4, tTextY, { width: tCols.banco - 8, align: "left" });
       doc.text(comp, tPos[4] + 4, tTextY, { width: tCols.comprobante - 8, align: "center" });
       doc.text(formatNumber(valor), tPos[5] + 3, tTextY, { width: tCols.valor - 6, align: "right" });
-      ty += tRowH;
+      ty += rowHeight;
     });
 
-    if (ty + tRowH > doc.page.height - 60) { doc.addPage(); ty = 50; }
-    fillRect(doc, tPos[0], ty, 495, tRowH, "#e6e6e6");
-    Object.values(tCols).reduce((x, w) => {
-      strokeRect(doc, x, ty, w, tRowH);
-      return x + w;
-    }, tPos[0]);
+    if (ty + rowHeight > doc.page.height - 60) { doc.addPage(); ty = 50; }
+    fillRect(doc, tPos[0], ty, 495, rowHeight, "#e6e6e6");
+    Object.values(tCols).reduce((x, w) => { strokeRect(doc, x, ty, w, rowHeight); return x + w; }, tPos[0]);
     doc.font("Helvetica-Bold").fontSize(9).fillColor("black");
     doc.text("TOTAL", tPos[0] + 4, ty + 6, { width: 495 - tCols.valor - 8, align: "right" });
     doc.text(formatNumber(totalValor), tPos[5] + 3, ty + 6, { width: tCols.valor - 6, align: "right" });
