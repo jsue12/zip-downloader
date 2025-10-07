@@ -322,7 +322,6 @@ const totalGasto = vagueMatrix.reduce((sum, r) => sum + r.gasto, 0);
 const maxGasto = Math.max(...vagueMatrix.map(r => r.gasto));
 
 // Parámetros visuales
-const marginLeft = 50;
 const labelWidth = 120;
 const barMaxWidth = 200;
 const barHeight = 8;
