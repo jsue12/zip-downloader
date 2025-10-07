@@ -1,11 +1,12 @@
 import express from "express";
-import fetch from "node-fetch";
 import PDFDocument from "pdfkit";
+import csvtojson from "csvtojson";
 
 const app = express();
 
 app.get("/generar-reporte", async (req, res) => {
   console.log("[start] /generar-reporte request received");
+
   try {
     const urlsParam = req.query.url;
     if (!urlsParam) {
@@ -13,13 +14,16 @@ app.get("/generar-reporte", async (req, res) => {
     }
 
     const urls = urlsParam.split(",").map(u => u.trim()).filter(Boolean);
-    const csvtojson = (await import("csvtojson")).default;
 
+    // ✅ Node 18+ ya tiene fetch incorporado
     const csvDataArr = [];
     for (const u of urls) {
       try {
         const resp = await fetch(u);
-        if (!resp.ok) continue;
+        if (!resp.ok) {
+          console.warn("No se pudo leer:", u);
+          continue;
+        }
         const text = await resp.text();
         const json = await csvtojson().fromString(text);
         csvDataArr.push({ url: u, data: json });
@@ -28,7 +32,9 @@ app.get("/generar-reporte", async (req, res) => {
       }
     }
 
-    // Buscar brawny-letters
+    // =============================
+    // ARCHIVO brawny-letters
+    // =============================
     const brawnyEntry = csvDataArr.find(c => c.url.toLowerCase().includes("brawny-letters"));
     if (!brawnyEntry || !brawnyEntry.data) {
       return res.status(404).send("No se encontró o no se pudo leer brawny-letters.csv");
@@ -40,7 +46,9 @@ app.get("/generar-reporte", async (req, res) => {
     const entregados = parseFloat(brawnyRow[keysB[1]] || 0);
     const saldo = parseFloat(brawnyRow[keysB[2]] || 0);
 
-    // Buscar vague-stage
+    // =============================
+    // ARCHIVO vague-stage
+    // =============================
     const vagueEntry = csvDataArr.find(c => c.url.toLowerCase().includes("vague-stage"));
     const vagueRecords = vagueEntry?.data || [];
     vagueRecords.sort((a, b) => {
@@ -49,7 +57,9 @@ app.get("/generar-reporte", async (req, res) => {
       return String(a[ka] || "").localeCompare(String(b[kb] || ""));
     });
 
-    // Buscar telling-match
+    // =============================
+    // ARCHIVO telling-match
+    // =============================
     const tellingEntry = csvDataArr.find(c => c.url.toLowerCase().includes("telling-match"));
     const tellingRecords = tellingEntry?.data || [];
     tellingRecords.sort((a, b) => {
@@ -58,13 +68,15 @@ app.get("/generar-reporte", async (req, res) => {
       return fechaA - fechaB;
     });
 
-    // Crear PDF
+    // =============================
+    // CREAR PDF
+    // =============================
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Disposition", "attachment; filename=reporte.pdf");
+
     const doc = new PDFDocument({ margin: 50, size: "A4" });
     doc.pipe(res);
 
-    // Helpers
     const formatNumber = n => {
       const num = parseFloat(String(n).replace(/[^\d.-]/g, "")) || 0;
       return num.toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -81,7 +93,9 @@ app.get("/generar-reporte", async (req, res) => {
       .font("Helvetica").text(` ${new Date().toLocaleDateString("es-EC")}`);
     doc.moveDown();
 
-    // Resumen ejecutivo
+    // =============================
+    // RESUMEN EJECUTIVO
+    // =============================
     doc.font("Helvetica-Bold").fontSize(12).text("RESUMEN EJECUTIVO");
     doc.moveDown(0.5);
     doc.font("Helvetica").fontSize(11);
@@ -91,9 +105,9 @@ app.get("/generar-reporte", async (req, res) => {
     doc.moveDown().moveTo(50, doc.y).lineTo(545, doc.y).stroke();
     doc.moveDown();
 
-    // ===================
+    // =============================
     // TABLA DE VAGUE-STAGE
-    // ===================
+    // =============================
     doc.font("Helvetica-Bold").fontSize(12).text("LISTADO DE ESTUDIANTES");
     doc.moveDown(0.5);
 
@@ -149,7 +163,7 @@ app.get("/generar-reporte", async (req, res) => {
       y += rowHeight;
     });
 
-    // 🔹 CORRECCIÓN 1: Fila de totales con divisiones completas
+    // Totales
     if (y + rowHeight > doc.page.height - 60) { doc.addPage(); y = 50; }
     fillRect(doc, positions[0], y, columns.reduce((a, b) => a + b), rowHeight, "#e6e6e6");
     let tx = positions[0];
@@ -162,16 +176,11 @@ app.get("/generar-reporte", async (req, res) => {
     doc.text("-", positions[5] + 3, y + 6, { width: columns[5] - 6, align: "center" });
     doc.moveDown(2);
 
-    // ===================
+    // =============================
     // TABLA DE TELLING-MATCH
-    // ===================
-    // 🔹 CORRECCIÓN 2: Alinear texto a la izquierda
-    doc.moveDown(0.5);
+    // =============================
     doc.font("Helvetica-Bold").fontSize(12);
-    doc.text("TRANSACCIONES DE COBRO", 50, doc.y, {
-      align: "left",
-      width: 500 // Fuerza el ancho de la línea para evitar que use el margen de la tabla anterior
-    });
+    doc.text("TRANSACCIONES DE COBRO", 50, doc.y, { align: "left", width: 500 });
     doc.moveDown(0.5);
 
     const tMargin = 50;
@@ -201,9 +210,7 @@ app.get("/generar-reporte", async (req, res) => {
     ty += tRowH;
 
     let totalValor = 0;
-
     tellingRecords.forEach((r, i) => {
-      // 🔹 CORRECCIÓN 3: Formatear fecha DD-MM-AAAA
       let fechaRaw = String(r["Fecha"] || "");
       let fechaObj = new Date(fechaRaw);
       let fecha = isNaN(fechaObj)
@@ -243,8 +250,9 @@ app.get("/generar-reporte", async (req, res) => {
     doc.text("TOTAL", tPos[0] + 4, ty + 6, { width: 495 - tCols.valor - 8, align: "right" });
     doc.text(formatNumber(totalValor), tPos[5] + 3, ty + 6, { width: tCols.valor - 6, align: "right" });
 
+    // Finalizar PDF
     doc.end();
-    console.log("[done] PDF stream ended");
+    console.log("[done] PDF stream ended ✅");
   } catch (err) {
     console.error("Error generando PDF:", err);
     if (!res.headersSent) res.status(500).send(err.message);
@@ -252,4 +260,4 @@ app.get("/generar-reporte", async (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Servidor en puerto ${PORT}`));
+app.listen(PORT, () => console.log(`Servidor corriendo en puerto ${PORT}`));
