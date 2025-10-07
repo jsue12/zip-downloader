@@ -150,7 +150,7 @@ app.get("/generar-reporte", async (req, res) => {
       let x = positions[0];
       columns.forEach((cw) => { strokeRect(doc, x, y, cw, rowHeight); x += cw; });
 
-      const textY = y + (rowHeight - 10) / 2;
+      const textY = y + 6;
       doc.font("Helvetica").fontSize(10).fillColor("black");
       doc.text(String(i + 1), positions[0] + 3, textY, { width: columns[0] - 6, align: "center" });
       doc.text(estudiante, positions[1] + 4, textY, { width: columns[1] - 8, align: "left" });
@@ -231,7 +231,7 @@ app.get("/generar-reporte", async (req, res) => {
       if (ty + tRowH > doc.page.height - 60) {
         doc.addPage();
         ty = 50;
-        drawTellingHeaders(ty);
+        //drawTellingHeaders(ty);
         ty += tRowH;
       }
     
@@ -243,7 +243,7 @@ app.get("/generar-reporte", async (req, res) => {
       Object.values(tCols).forEach((cw) => { strokeRect(doc, tx2, ty, cw, tRowH); tx2 += cw; });
     
       // Texto en celdas
-      const tTextY = ty + (tRowH - 10) / 2;
+      const tTextY = ty + 6;
       doc.font("Helvetica").fontSize(9).fillColor("black");
       doc.text(String(i + 1), tPos[0] + 3, tTextY, { width: tCols.n - 6, align: "center" });
       doc.text(fecha, tPos[1] + 3, tTextY, { width: tCols.fecha - 6, align: "center" });
