@@ -212,7 +212,7 @@ app.get("/generar-reporte", async (req, res) => {
 
     doc.moveTo(columnPositions[0], y + rowHeight).lineTo(columnPositions[0] + fullTableWidth, y + rowHeight).stroke();
 
-    doc.moveDown().moveTo(50, doc.y).lineTo(545, doc.y).stroke();
+    doc.moveDown().moveTo(80, doc.y).lineTo(545, doc.y).stroke();
     doc.moveDown();
 
     doc.end();
