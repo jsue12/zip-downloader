@@ -150,7 +150,7 @@ app.get("/generar-reporte", async (req, res) => {
       let x = positions[0];
       columns.forEach((cw) => { strokeRect(doc, x, y, cw, rowHeight); x += cw; });
 
-      const textY = y + 6;
+      const textY = y + (rowHeight - 10) / 2;
       doc.font("Helvetica").fontSize(10).fillColor("black");
       doc.text(String(i + 1), positions[0] + 3, textY, { width: columns[0] - 6, align: "center" });
       doc.text(estudiante, positions[1] + 4, textY, { width: columns[1] - 8, align: "left" });
@@ -173,7 +173,7 @@ app.get("/generar-reporte", async (req, res) => {
     doc.text(formatNumber(totalCuotas), positions[2] + 3, y + 6, { width: columns[2] - 6, align: "right" });
     doc.text(formatNumber(totalAbonos), positions[3] + 3, y + 6, { width: columns[3] - 6, align: "right" });
     doc.text(formatNumber(totalSaldos), positions[4] + 3, y + 6, { width: columns[4] - 6, align: "right" });
-    doc.text("", positions[5] + 3, y + 6, { width: columns[5] - 6, align: "center" });
+    doc.text(" ", positions[5] + 3, y + 6, { width: columns[5] - 6, align: "center" });
     doc.moveDown(2.5);
 
     // =============================
@@ -245,13 +245,13 @@ app.get("/generar-reporte", async (req, res) => {
       Object.values(tCols).forEach((cw) => { strokeRect(doc, tx2, ty, cw, tRowH); tx2 += cw; });
     
       // Texto en celdas
-      const tTextY = ty + 6;
+      const tTextY = ty + (tRowH - 10) / 2;
       doc.font("Helvetica").fontSize(9).fillColor("black");
       doc.text(String(i + 1), tPos[0] + 3, tTextY, { width: tCols.n - 6, align: "center" });
       doc.text(fecha, tPos[1] + 3, tTextY, { width: tCols.fecha - 6, align: "center" });
       doc.text(estudiante, tPos[2] + 4, tTextY, { width: tCols.estudiante - 8, align: "left" });
       doc.text(banco, tPos[3] + 4, tTextY, { width: tCols.banco - 8, align: "left" });
-      doc.text(comp, tPos[4] + 4, tTextY, { width: tCols.comprobante - 8, align: "center" });
+      doc.text(comp, tPos[4] + 4, tTextY, { width: tCols.comprobante - 8, align: "left" });
       doc.text(formatNumber(valora), tPos[5] + 3, tTextY, { width: tCols.valor - 6, align: "right" });
     
       ty += tRowH;
@@ -261,14 +261,22 @@ app.get("/generar-reporte", async (req, res) => {
     // TOTAL FINAL
     // ===================
     if (ty + tRowH > doc.page.height - 60) { doc.addPage(); ty = 50; }
-    fillRect(doc, tPos[0], ty, 495, tRowH, "#e6e6e6");
-    Object.values(tCols).reduce((x, w) => {
-      strokeRect(doc, x, ty, w, tRowH);
-      return x + w;
-    }, tPos[0]);
+    
+    const totalWidth = Object.values(tCols).slice(0, 5).reduce((a, b) => a + b, 0); // ancho de las 5 primeras columnas
+    
+    // Fondo gris de ambas celdas
+    fillRect(doc, tPos[0], ty, totalWidth + tCols.valor, tRowH, "#e6e6e6");
+    
+    // Bordes
+    strokeRect(doc, tPos[0], ty, totalWidth, tRowH);        // celda combinada
+    strokeRect(doc, tPos[5], ty, tCols.valor, tRowH);       // celda de valor
+    
+    // Texto centrado verticalmente
+    const totalTextY = ty + (tRowH - 10) / 2;
+    
     doc.font("Helvetica-Bold").fontSize(9).fillColor("black");
-    doc.text("TOTAL", tPos[0] + 4, ty + 6, { width: 495 - tCols.valor - 8, align: "right" });
-    doc.text(formatNumber(totalValor), tPos[5] + 3, ty + 6, { width: tCols.valor - 6, align: "right" });
+    doc.text("TOTAL", tPos[0] + 4, totalTextY, { width: totalWidth - 8, align: "right" });
+    doc.text(formatNumber(totalValor), tPos[5] + 3, totalTextY, { width: tCols.valor - 6, align: "right" });
 
     // Finalizar PDF
     doc.end();
