@@ -310,21 +310,6 @@ app.get("/generar-reporte", async (req, res) => {
     doc.text("RESUMEN DE VALORES PAGADOS", 50, doc.y, { align: "left", width: 500 });
     doc.moveDown(1);
 
-// =============================
-// GRAFICO ASCII DE GASTOS EN UNA SOLA LÍNEA
-// =============================
-
-// Verificar espacio en página
-if (doc.y + 80 > doc.page.height - 50) {
-  doc.addPage();
-  doc.y = 50;
-}
-
-doc.moveDown(1);
-doc.font("Helvetica-Bold").fontSize(12).text("DASHBOARD DE GASTOS (VAGUE-STAGE)");
-doc.moveDown(0.5);
-
-// Convertir registros en datos base
 const vagueMatrix = vagueRecords.map(row => {
   const keys = Object.keys(row);
   const estudiante = String(row[keys[0]] || "").trim();
@@ -333,19 +318,17 @@ const vagueMatrix = vagueRecords.map(row => {
 }).filter(r => r.estudiante && !isNaN(r.gasto));
 
 vagueMatrix.sort((a, b) => b.gasto - a.gasto);
+
 const totalGasto = vagueMatrix.reduce((sum, r) => sum + r.gasto, 0);
 const maxGasto = Math.max(...vagueMatrix.map(r => r.gasto));
 
-// === CONFIGURACIÓN DE FORMATO ===
-const labelWidth = 18;       // caracteres
-const barMaxChars = 40;      // longitud máxima de barra (≈ 200 pt aprox)
-const barChar = "█";         // carácter de relleno
-const endChar = "▏";         // carácter de cierre
-const spacing = 3;           // separación entre columnas
+const labelWidth = 18;
+const barMaxChars = 40;
+const barChar = "■"; // carácter sólido seguro
+const spacing = 3;
 
 doc.font("Courier").fontSize(9).fillColor("black");
 
-// === GRAFICAR FILAS ===
 vagueMatrix.forEach(({ estudiante, gasto }) => {
   if (doc.y + 15 > doc.page.height - 50) {
     doc.addPage();
@@ -354,19 +337,16 @@ vagueMatrix.forEach(({ estudiante, gasto }) => {
 
   const porcentaje = totalGasto > 0 ? (gasto / totalGasto) * 100 : 0;
   const barLength = maxGasto > 0 ? Math.round((gasto / maxGasto) * barMaxChars) : 0;
-  const bar = barChar.repeat(barLength) + (barLength > 0 ? endChar : "");
 
-  // Nombre alineado
+  // Reproducir barra sólida
+  const bar = barChar.repeat(barLength).padEnd(barMaxChars, " ");
+
   const nombre = estudiante.padEnd(labelWidth).substring(0, labelWidth);
-
-  // Leyenda derecha
   const legend = `${formatNumber(gasto)} — ${porcentaje.toFixed(2)}%`;
 
-  // Línea completa
-  const line = `${nombre} | ${bar.padEnd(barMaxChars)} | ${legend}`;
+  const line = `${nombre} | ${bar} | ${legend}`;
   doc.text(line, marginLeft, doc.y, { continued: false });
 });
-  
     
     // Finalizar PDF
     doc.end();
