@@ -68,7 +68,11 @@ app.get("/generar-reporte", async (req, res) => {
     // Helpers
     const formatNumber = n => {
       const num = parseFloat(String(n).replace(/[^\d.-]/g, "")) || 0;
-      return num.toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      return num.toLocaleString("es-ES", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+        useGrouping: true
+      });
     };
 
     const fillRect = (doc, x, y, w, h, color) => {
