@@ -299,15 +299,15 @@ app.get("/generar-reporte", async (req, res) => {
     doc.text(formatNumber(totalValor), tPos[5] + 3, tTextY, { width: tCols.valor - 6, align: "right" });
 
     //GRAFICOS
+        
+    if (doc.y + 100 > doc.page.height - 50) {
+      doc.addPage();
+      doc.y = 50;
+    }
     
-if (doc.y + 100 > doc.page.height - 50) {
-  doc.addPage();
-  doc.y = 50;
-}
-
-doc.moveDown(1);
-doc.font("Helvetica-Bold").fontSize(12).text("DASHBOARD DE GASTOS (VAGUE-STAGE)");
-doc.moveDown(0.5);
+    doc.font("Helvetica-Bold").fontSize(12);
+    doc.text("RESUMEN DE VALORES PAGADOS", 50, doc.y, { align: "left", width: 500 });
+    doc.moveDown(1);
 
 // Extraer datos desde vague-stage
 const vagueMatrix = vagueRecords.map(row => {
