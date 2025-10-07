@@ -310,20 +310,21 @@ app.get("/generar-reporte", async (req, res) => {
     doc.text("RESUMEN DE VALORES PAGADOS", 50, doc.y, { align: "left", width: 500 });
     doc.moveDown(1);
 
-    const vagueMatrix = vagueRecords.map(row => {
-      const keys = Object.keys(row);
-      const estudiante = String(row[keys[0]] || "").trim();
-      const gasto = parseFloat(row[keys[4]] || 0);
-      return { estudiante, gasto };
-    }).filter(r => r.estudiante && !isNaN(r.gasto));
-    
-    // Ordenar de mayor a menor gasto
-    vagueMatrix.sort((a, b) => b.gasto - a.gasto);
-    
-    // Calcular totales
-    const totalGasto = vagueMatrix.reduce((sum, r) => sum + r.gasto, 0);
-    const maxGasto = Math.max(...vagueMatrix.map(r => r.gasto));
-    
+const vagueMatrix = vagueRecords.map(row => {
+  const keys = Object.keys(row);
+  const estudiante = String(row[keys[0]] || "").trim();
+  const gasto = parseFloat(row[keys[4]] || 0);
+  return { estudiante, gasto };
+}).filter(r => r.estudiante && !isNaN(r.gasto));
+
+// Ordenar de mayor a menor
+vagueMatrix.sort((a, b) => b.gasto - a.gasto);
+
+// Calcular totales
+const totalGasto = vagueMatrix.reduce((sum, r) => sum + r.gasto, 0);
+const maxGasto = Math.max(...vagueMatrix.map(r => r.gasto));
+
+// Parámetros del gráfico
 const marginLeft = 50;        // margen izquierdo
 const graphWidth = 495;       // ancho máximo permitido
 const barHeight = 14;         // altura por fila
