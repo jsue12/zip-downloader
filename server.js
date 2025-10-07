@@ -217,7 +217,7 @@ app.get("/generar-reporte", async (req, res) => {
       const fechaRaw = String(row[0] || "");
       const estudiante = String(row[1] || "").trim();
       const banco = String(row[2] || "").trim();
-      const comp = String(row[3] || "").trim();
+      const comp = String(row[3] || "");
       const valora = parseFloat(row[4] || 0);
       totalValor += valora;
     
