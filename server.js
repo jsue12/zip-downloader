@@ -217,8 +217,8 @@ app.get("/generar-reporte", async (req, res) => {
       const fechaRaw = String(row[0] || "");
       const estudiante = String(row[1] || "").trim();
       const banco = String(row[2] || "").trim();
-      const comp = String(row[3] || "");
-      const valora = parseFloat(row[4] || 0);
+      const comp = String(row[4] || "");
+      const valora = parseFloat(String(row[3]).replace(/[^\d.-]/g, "")) || 0;
       totalValor += valora;
     
       // Formatear fecha si es válida
