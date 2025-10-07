@@ -112,7 +112,7 @@ app.get("/generar-reporte", async (req, res) => {
     doc.moveDown(0.5);
 
     const marginLeft = 50;
-    const colWidths = { nro: 41, estudiante: 160, cuotas: 71, abonos: 71, saldos: 71, estado: 81 };
+    const colWidths = { nro: 35, estudiante: 162, cuotas: 72, abonos: 72, saldos: 72, estado: 82 };
     const columns = Object.values(colWidths);
     const positions = columns.reduce((acc, w, i) => {
       acc.push((acc[i - 1] ?? marginLeft) + (i ? columns[i - 1] : 0));
@@ -181,11 +181,11 @@ app.get("/generar-reporte", async (req, res) => {
     // =============================
     doc.font("Helvetica-Bold").fontSize(12);
     doc.text("TRANSACCIONES DE COBRO", 50, doc.y, { align: "left", width: 500 });
-    doc.moveDown(0.5);
+    doc.moveDown(2);
 
     const tMargin = 50;
     const tRowH = 22;
-    const tCols = { n: 35, fecha: 80, estudiante: 140, banco: 90, comprobante: 90, valor: 60 };
+    const tCols = { n: 35, fecha: 75, estudiante: 142, banco: 93, comprobante: 90, valor: 60 };
     const tPos = [
       tMargin,
       tMargin + tCols.n,
