@@ -210,25 +210,39 @@ app.get("/generar-reporte", async (req, res) => {
     ty += tRowH;
 
     let totalValor = 0;
-    tellingRecords.forEach((r, i) => {
-      let fechaRaw = String(r["Fecha"] || "");
-      let fechaObj = new Date(fechaRaw);
-      let fecha = isNaN(fechaObj)
+    const tellingMatrix = tellingRecords.map(obj => Object.values(obj));
+    
+    tellingMatrix.forEach((row, i) => {
+      // Acceder por índice según orden de columnas
+      const fechaRaw = String(row[0] || "");
+      const estudiante = String(row[1] || "").trim();
+      const banco = String(row[2] || "").trim();
+      const comp = String(row[3] || "").trim();
+      const valor = parseFloat(row[4] || 0);
+      totalValor += valor;
+    
+      // Formatear fecha si es válida
+      const fechaObj = new Date(fechaRaw);
+      const fecha = isNaN(fechaObj)
         ? fechaRaw
         : `${String(fechaObj.getDate()).padStart(2, "0")}-${String(fechaObj.getMonth() + 1).padStart(2, "0")}-${fechaObj.getFullYear()}`;
-
-      const estudiante = String(r["Estudiante"] || "").trim();
-      const banco = String(r["Banco"] || "").trim();
-      const comp = String(r["# comprobante"] || "").trim();
-      const valor = parseFloat(r["Valor"] || 0);
-      totalValor += valor;
-
-      if (ty + tRowH > doc.page.height - 60) { doc.addPage(); ty = 50; drawTellingHeaders(ty); ty += tRowH; }
+    
+      // Salto de página si es necesario
+      if (ty + tRowH > doc.page.height - 60) {
+        doc.addPage();
+        ty = 50;
+        drawTellingHeaders(ty);
+        ty += tRowH;
+      }
+    
+      // Fondo alterno
       if (i % 2 === 0) fillRect(doc, tPos[0], ty, 495, tRowH, "#fafafa");
-
+    
+      // Bordes de fila
       let tx2 = tPos[0];
       Object.values(tCols).forEach((cw) => { strokeRect(doc, tx2, ty, cw, tRowH); tx2 += cw; });
-
+    
+      // Texto en celdas
       const tTextY = ty + 6;
       doc.font("Helvetica").fontSize(9).fillColor("black");
       doc.text(String(i + 1), tPos[0] + 3, tTextY, { width: tCols.n - 6, align: "center" });
@@ -237,9 +251,13 @@ app.get("/generar-reporte", async (req, res) => {
       doc.text(banco, tPos[3] + 4, tTextY, { width: tCols.banco - 8, align: "left" });
       doc.text(comp, tPos[4] + 4, tTextY, { width: tCols.comprobante - 8, align: "center" });
       doc.text(formatNumber(valor), tPos[5] + 3, tTextY, { width: tCols.valor - 6, align: "right" });
+    
       ty += tRowH;
     });
-
+    
+    // ===================
+    // TOTAL FINAL
+    // ===================
     if (ty + tRowH > doc.page.height - 60) { doc.addPage(); ty = 50; }
     fillRect(doc, tPos[0], ty, 495, tRowH, "#e6e6e6");
     Object.values(tCols).reduce((x, w) => {
