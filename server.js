@@ -166,7 +166,7 @@ app.get("/generar-reporte", async (req, res) => {
     // ===================
     // TABLA DE TELLING-MATCH
     // ===================
-    doc.font("Helvetica-Bold").fontSize(12).text("TRANSACCIONES DE COBRO"), { align: "left" });
+    doc.font("Helvetica-Bold").fontSize(12).text("TRANSACCIONES DE COBRO");
     doc.moveDown(0.5);
 
     const tMargin = 50;
@@ -187,7 +187,7 @@ app.get("/generar-reporte", async (req, res) => {
       tHeaders.forEach((h, i) => {
         fillRect(doc, tPos[i], yPos, Object.values(tCols)[i], tRowH, "#e6e6e6");
         strokeRect(doc, tPos[i], yPos, Object.values(tCols)[i], tRowH);
-        doc.font("Helvetica-Bold").fontSize(10).fillColor("black")
+        doc.font("Helvetica-Bold").fontSize(9).fillColor("black")
           .text(h, tPos[i] + 4, yPos + 6, { width: Object.values(tCols)[i] - 8, align: "center" });
       });
     };
@@ -228,7 +228,7 @@ app.get("/generar-reporte", async (req, res) => {
       strokeRect(doc, x, ty, w, tRowH);
       return x + w;
     }, tPos[0]);
-    doc.font("Helvetica-Bold").fontSize(10).fillColor("black");
+    doc.font("Helvetica-Bold").fontSize(9).fillColor("black");
     doc.text("TOTAL", tPos[0] + 4, ty + 6, { width: 495 - tCols.valor - 8, align: "right" });
     doc.text(formatNumber(totalValor), tPos[5] + 3, ty + 6, { width: tCols.valor - 6, align: "right" });
 
