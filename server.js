@@ -153,7 +153,7 @@ app.get("/generar-reporte", async (req, res) => {
       const textY = y + 6;
       doc.font("Helvetica").fontSize(10).fillColor("black");
       doc.text(String(i + 1), positions[0] + 3, textY, { width: columns[0] - 6, align: "center" });
-      doc.text(estudiante, positions[1] + 4, textY, { width: columns[1] - 8, align: "left" });
+      doc.text(estudiante, positions[1] + 4, textY, { width: columns[0] +columns[1] - 8, align: "left" });
       doc.text(formatNumber(cuotas), positions[2] + 3, textY, { width: columns[2] - 6, align: "right" });
       doc.text(formatNumber(abonos), positions[3] + 3, textY, { width: columns[3] - 6, align: "right" });
       doc.text(formatNumber(saldos), positions[4] + 3, textY, { width: columns[4] - 6, align: "right" });
@@ -169,12 +169,12 @@ app.get("/generar-reporte", async (req, res) => {
     let tx = positions[0];
     columns.forEach((cw) => { strokeRect(doc, tx, y, cw, rowHeight); tx += cw; });
     doc.font("Helvetica-Bold").fontSize(10).fillColor("black");
-    doc.text("TOTAL GENERAL", positions[1] + 4, y + 6, { width: columns[1] - 8, align: "left" });
+    doc.text("TOTAL GENERAL", positions[0] + 4, y + 6, { width: columns[0] - 8, align: "left" });
     doc.text(formatNumber(totalCuotas), positions[2] + 3, y + 6, { width: columns[2] - 6, align: "right" });
     doc.text(formatNumber(totalAbonos), positions[3] + 3, y + 6, { width: columns[3] - 6, align: "right" });
     doc.text(formatNumber(totalSaldos), positions[4] + 3, y + 6, { width: columns[4] - 6, align: "right" });
     doc.text(" ", positions[5] + 3, y + 6, { width: columns[5] - 6, align: "center" });
-    doc.moveDown(2);
+    doc.moveDown(1.5);
 
     // =============================
     // TABLA DE TELLING-MATCH
