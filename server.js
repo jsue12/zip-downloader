@@ -106,10 +106,10 @@ app.get("/generar-reporte", async (req, res) => {
 
     vagueRecords.forEach((r, i) => {
       const keys = Object.keys(r);
-      const estudiante = r[k[0]] ?? "";
-      const cuotas = parseFloat(r[k[1]] || 0);
-      const abonos = parseFloat(r[k[2]] || 0);
-      const saldos = parseFloat(r[k[3]] || 0);
+      const estudiante = r[keys[0]] ?? "";
+      const cuotas = parseFloat(r[keys[1]] || 0);
+      const abonos = parseFloat(r[keys[2]] || 0);
+      const saldos = parseFloat(r[keys[3]] || 0);
       const estado = (r[keys[keys.length - 1]] || "").toString().toUpperCase();
 
       totalCuotas += cuotas;
