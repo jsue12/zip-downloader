@@ -297,47 +297,64 @@ app.get("/generar-reporte", async (req, res) => {
     doc.font("Helvetica-Bold").fontSize(9).fillColor("black");
     doc.text("TOTAL DE VALORES RECIBIDOS", tPos[0] + 4, tTextY, { width: totalWidth - 8, align: "right" });
     doc.text(formatNumber(totalValor), tPos[5] + 3, tTextY, { width: tCols.valor - 6, align: "right" });
+    doc.moveDown(2);
 
     //GRAFICOS
         
-    if (doc.y + 100 > doc.page.height - 50) {
+    if (doc.y + 80 > doc.page.height - 50) {
       doc.addPage();
       doc.y = 50;
     }
-    
+
     doc.font("Helvetica-Bold").fontSize(12);
     doc.text("RESUMEN DE VALORES PAGADOS", 50, doc.y, { align: "left", width: 500 });
     doc.moveDown(1);
 
-// Extraer datos desde vague-stage
-const vagueMatrix = vagueRecords.map(row => {
-  const keys = Object.keys(row);
-  const estudiante = String(row[keys[0]] || "").trim();
-  const gasto = parseFloat(row[keys[4]] || 0); // 5ta columna
-  return { estudiante, gasto };
-}).filter(r => r.estudiante && !isNaN(r.gasto));
-
-// Ordenar de mayor a menor gasto
-vagueMatrix.sort((a, b) => b.gasto - a.gasto);
-
-// Calcular totales
-const totalGasto = vagueMatrix.reduce((sum, r) => sum + r.gasto, 0);
-const maxGasto = Math.max(...vagueMatrix.map(r => r.gasto));
-const barMaxWidth = 180; // ancho máximo de barra en caracteres visuales
-
-// Dibujar gráfico tipo consola
-vagueMatrix.forEach(({ estudiante, gasto }) => {
-  const porcentaje = totalGasto > 0 ? (gasto / totalGasto) * 100 : 0;
-  const barLength = Math.round((gasto / maxGasto) * barMaxWidth);
-  const bar = "█".repeat(Math.max(1, Math.floor(barLength / 6))); // escala visual
-
-  const linea = `${estudiante.padEnd(20)} | ${bar.padEnd(barMaxWidth / 6)} | ${formatNumber(gasto)} — ${porcentaje.toFixed(2)}%`;
-
-  // Si no hay espacio suficiente, detener el gráfico (sin salto de página)
-  if (doc.y + 15 > doc.page.height - 50) return;
-
-  doc.font("Courier").fontSize(9).fillColor("black").text(linea, { width: 500, align: "left" });
-});
+    const vagueMatrix = vagueRecords.map(row => {
+      const keys = Object.keys(row);
+      const estudiante = String(row[keys[0]] || "").trim();
+      const gasto = parseFloat(row[keys[4]] || 0);
+      return { estudiante, gasto };
+    }).filter(r => r.estudiante && !isNaN(r.gasto));
+    
+    // Ordenar de mayor a menor gasto
+    vagueMatrix.sort((a, b) => b.gasto - a.gasto);
+    
+    // Calcular totales
+    const totalGasto = vagueMatrix.reduce((sum, r) => sum + r.gasto, 0);
+    const maxGasto = Math.max(...vagueMatrix.map(r => r.gasto));
+    
+    // Parámetros de diseño del gráfico
+    const graphX = 60;              // margen izquierdo
+    const graphWidth = 400;         // ancho máximo para la barra
+    const barHeight = 13;           // altura de línea por estudiante
+    const barChar = "█";            // carácter de barra
+    
+    doc.font("Courier").fontSize(9).fillColor("black");
+    
+    // Dibujar líneas del gráfico
+    vagueMatrix.forEach(({ estudiante, gasto }) => {
+      if (doc.y + barHeight > doc.page.height - 50) return; // detener si no hay espacio
+    
+      const porcentaje = totalGasto > 0 ? (gasto / totalGasto) * 100 : 0;
+      const barLen = maxGasto > 0 ? Math.round((gasto / maxGasto) * graphWidth) : 0;
+      const bar = barChar.repeat(Math.max(1, Math.floor(barLen / 6))); // escala visual controlada
+    
+      // Alinear texto
+      const nombre = estudiante.padEnd(22).substring(0, 22);
+      const valor = formatNumber(gasto).padStart(10);
+      const perc = `${porcentaje.toFixed(2)}%`.padStart(7);
+    
+      // Dibujar línea
+      doc.text(
+        `${nombre} | ${bar.padEnd(graphWidth / 6)} | ${valor} — ${perc}`,
+        graphX,
+        doc.y,
+        { width: 480, align: "left" }
+      );
+    
+      doc.moveDown(0.3);
+    });
 
   
     
