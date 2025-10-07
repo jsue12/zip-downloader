@@ -196,7 +196,7 @@ app.get("/generar-reporte", async (req, res) => {
     doc.text(formatNumber(totalSaldos), positions[4] + 3, totalTextY, { width: columns[4] - 6, align: "right" });
     doc.text(" ", positions[5] + 3, totalTextY, { width: columns[5] - 6, align: "center" });
     
-    doc.moveDown(1.5);
+    doc.moveDown(2);
 
     // =============================
     // TABLA DE TELLING-MATCH
