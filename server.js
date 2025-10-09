@@ -191,31 +191,279 @@ app.get("/generar-reporte", async (req, res) => {
       doc.font("Helvetica-Bold").fontSize(12);
       doc.text("TRANSACCIONES DE COBRO", 50, doc.y, { align: "left", width: 500 });
       doc.moveDown(1);
-
-      // [contenido original de esta sección aquí...]
-      // Puedes mantener la estructura de la tabla como ya estaba.
+  
+      const tMargin = 50;
+      const tRowH = 22;
+      const tCols = { n: 35, fecha: 69, estudiante: 135, banco: 101, comprobante: 90, valor: 65 };
+      const tPos = [
+        tMargin,
+        tMargin + tCols.n,
+        tMargin + tCols.n + tCols.fecha,
+        tMargin + tCols.n + tCols.fecha + tCols.estudiante,
+        tMargin + tCols.n + tCols.fecha + tCols.estudiante + tCols.banco,
+        tMargin + tCols.n + tCols.fecha + tCols.estudiante + tCols.banco + tCols.comprobante
+      ];
+      const tHeaders = ["N°", "FECHA", "ESTUDIANTE", "BANCO", "# COMPROBANTE", "VALOR"];
+      let ty = doc.y;
+  
+      const drawTellingHeaders = (yPos) => {
+        tHeaders.forEach((h, i) => {
+          fillRect(doc, tPos[i], yPos, Object.values(tCols)[i], tRowH, "#e6e6e6");
+          strokeRect(doc, tPos[i], yPos, Object.values(tCols)[i], tRowH);
+          doc.font("Helvetica-Bold").fontSize(9).fillColor("black")
+            .text(h, tPos[i] + 4, yPos + 7.5, { width: Object.values(tCols)[i] - 8, align: "center" });
+        });
+      };
+  
+      drawTellingHeaders(ty);
+      ty += tRowH;
+  
+      let totalValor = 0;
+      const tellingMatrix = tellingRecords.map(obj => Object.values(obj));
+  
+      tellingMatrix.forEach((row, i) => {
+        // Acceder por índice según orden de columnas
+        const fechaRaw = String(row[0] || "");
+        const estudiante = String(row[1] || "").trim();
+        const banco = String(row[2] || "").trim();
+        const comp = String(row[3] || "");
+        const valora = parseFloat(String(row[4]).replace(/[^\d.-]/g, "")) || 0;
+        totalValor += valora;
+  
+        // Formatear fecha si es válida
+        const fechaObj = new Date(fechaRaw);
+        const fecha = isNaN(fechaObj)
+          ? fechaRaw
+          : `${String(fechaObj.getDate()).padStart(2, "0")}-${String(fechaObj.getMonth() + 1).padStart(2, "0")}-${fechaObj.getFullYear()}`;
+  
+        // Salto de página si es necesario
+        if (ty + tRowH > doc.page.height - 60) {
+          doc.addPage();
+          ty = 50;
+          //drawTellingHeaders(ty);
+          ty += tRowH;
+        }
+  
+        // Fondo alterno
+        if (i % 2 === 0) fillRect(doc, tPos[0], ty, 495, tRowH, "#fafafa");
+  
+        // Bordes de fila
+        let tx2 = tPos[0];
+        Object.values(tCols).forEach((cw) => { strokeRect(doc, tx2, ty, cw, tRowH); tx2 += cw; });
+  
+        // Texto en celdas
+        const tTextY = ty + 7.5;
+        doc.font("Helvetica").fontSize(9).fillColor("black");
+        doc.text(String(i + 1), tPos[0] + 3, tTextY, { width: tCols.n - 6, align: "center" });
+        doc.text(fecha, tPos[1] + 3, tTextY, { width: tCols.fecha - 6, align: "center" });
+        doc.text(estudiante, tPos[2] + 4, tTextY, { width: tCols.estudiante - 8, align: "left" });
+        doc.text(banco, tPos[3] + 4, tTextY, { width: tCols.banco - 8, align: "left" });
+        doc.text(comp, tPos[4] + 4, tTextY, { width: tCols.comprobante - 8, align: "left" });
+        doc.text(formatNumber(valora), tPos[5] + 3, tTextY, { width: tCols.valor - 6, align: "right" });
+  
+        ty += tRowH;
+      });
+  
+      // ===================
+      // TOTAL FINAL
+      // ===================
+      if (ty + tRowH > doc.page.height - 60) { doc.addPage(); ty = 50; }
+  
+      const totalWidth = Object.values(tCols).slice(0, 5).reduce((a, b) => a + b, 0); // ancho de las 5 primeras columnas
+  
+      // Fondo gris de ambas celdas
+      fillRect(doc, tPos[0], ty, totalWidth + tCols.valor, tRowH, "#e6e6e6");
+  
+      // Bordes
+      strokeRect(doc, tPos[0], ty, totalWidth, tRowH);        // celda combinada
+      strokeRect(doc, tPos[5], ty, tCols.valor, tRowH);       // celda de valor
+  
+      // Texto centrado verticalmente
+      const tTextY = ty + 7.5;
+  
+      doc.font("Helvetica-Bold").fontSize(9).fillColor("black");
+      doc.text("TOTAL DE VALORES RECIBIDOS", tPos[0] + 4, tTextY, { width: totalWidth - 8, align: "right" });
+      doc.text(formatNumber(totalValor), tPos[5] + 3, tTextY, { width: tCols.valor - 6, align: "right" });
+      doc.moveDown(2);
     }
 
     // ==========================================================
     // SECCIÓN: RESUMEN DE VALORES PAGADOS (solo si hay datos)
     // ==========================================================
     if (vagueRecords.length > 0) {
-      doc.font("Helvetica-Bold").fontSize(12);
-      doc.text("RESUMEN DE VALORES PAGADOS", 50, doc.y, { align: "left", width: 500 });
-      doc.moveDown(1);
-
-      // [contenido de gráfico simulado con texto]
+        if (doc.y + 80 > doc.page.height - 50) {
+          doc.addPage();
+          doc.y = 50;
+        }
+    
+        doc.font("Helvetica-Bold").fontSize(12);
+        doc.text("RESUMEN DE VALORES PAGADOS", 50, doc.y, { align: "left", width: 500 });
+        doc.moveDown(1);
+    
+        const vagueMatrix = vagueRecords.map(row => {
+          const keys = Object.keys(row);
+          const estudiante = String(row[keys[0]] || "").trim();
+          const gasto = parseFloat(row[keys[4]] || 0);
+          return { estudiante, gasto };
+        }).filter(r => r.estudiante && !isNaN(r.gasto));
+    
+        vagueMatrix.sort((a, b) => b.gasto - a.gasto);
+    
+        const totalGasto = vagueMatrix.reduce((sum, r) => sum + r.gasto, 0);
+        const maxGasto = Math.max(...vagueMatrix.map(r => r.gasto));
+    
+        const labelWidth = 22;
+        const barMaxChars = 40;
+        const barChar = "="; // carácter sólido seguro
+    
+        doc.font("Courier").fontSize(9).fillColor("black");
+    
+        vagueMatrix.forEach(({ estudiante, gasto }) => {
+          if (doc.y + 15 > doc.page.height - 50) {
+            doc.addPage();
+            doc.y = 50;
+          }
+    
+        const porcentaje = totalGasto > 0 ? (gasto / totalGasto) * 100 : 0;
+        const barLength = maxGasto > 0 ? Math.round((gasto / totalGasto) * barMaxChars) : 0;
+    
+        // Reproducir barra sólida
+        const bar = barChar.repeat(barLength).padEnd(barMaxChars, " ");
+    
+        const nombre = estudiante.padEnd(labelWidth).substring(0, labelWidth);
+        const legend = `${formatNumber(gasto)} — ${porcentaje.toFixed(2)}%`;
+    
+        const line = `${nombre} | ${bar} | ${legend}`;
+        doc.text(line, marginLeft, doc.y, { continued: false });
+      });   
+      
     }
 
     // ==========================================================
     // SECCIÓN: TRANSACCIONES DE PAGO (solo si hay datos)
     // ==========================================================
     if (pagosRecords.length > 0) {
+      const pagosEntry = csvDataArr.find(c => c.url.toLowerCase().includes("pagos"));
+      const pagosRecords = pagosEntry?.data || [];
+      
+      // 🧠 ORDENAR POR FECHA ASCENDENTE
+      if (pagosRecords.length > 0) {
+        pagosRecords.sort((a, b) => {
+          const fa = new Date(a["fecha"] || a["Fecha"] || "");
+          const fb = new Date(b["fecha"] || b["Fecha"] || "");
+          return fa - fb;
+        });
+      }
+
+      if (doc.y + 80 > doc.page.height - 60) {
+        doc.addPage();
+        doc.y = 50;
+      }
       doc.font("Helvetica-Bold").fontSize(12);
       doc.text("TRANSACCIONES DE PAGO", 50, doc.y, { align: "left", width: 500 });
-      doc.moveDown(1);
+      doc.moveDown(2);
 
-      // [contenido original de esta tabla...]
+      const pMargin = 50;
+      const pRowH = 22;
+      const pCols = { n: 35, fecha: 69, estudiante: 135, concepto: 101, numfac: 90, valor: 65 };
+      const pHeaders = ["N°", "FECHA", "ESTUDIANTE", "CONCEPTO", "# FAC O COT", "VALOR"];
+      const pPos = [
+        pMargin,
+        pMargin + pCols.n,
+        pMargin + pCols.n + pCols.fecha,
+        pMargin + pCols.n + pCols.fecha + pCols.estudiante,
+        pMargin + pCols.n + pCols.fecha + pCols.estudiante + pCols.concepto,
+        pMargin + pCols.n + pCols.fecha + pCols.estudiante + pCols.concepto + pCols.numfac
+      ];
+      const totalWidthPagos = Object.values(pCols).reduce((a, b) => a + b);
+    
+      const drawPagosHeaders = (yPos) => {
+        pHeaders.forEach((h, i) => {
+          fillRect(doc, pPos[i], yPos, Object.values(pCols)[i], pRowH, "#e6e6e6");
+          strokeRect(doc, pPos[i], yPos, Object.values(pCols)[i], pRowH);
+          doc.font("Helvetica-Bold").fontSize(9).fillColor("black")
+            .text(h, pPos[i] + 4, yPos + 7, {
+              width: Object.values(pCols)[i] - 8,
+              align: "center"
+            });
+        });
+      };
+    
+      let py = doc.y;
+      drawPagosHeaders(py);
+      py += pRowH;
+    
+      let totalValorPagos = 0;
+    
+      pagosRecords.forEach((row, i) => {
+        const fechaRaw = String(row["fecha"] || "").trim();
+        const fechaObj = new Date(fechaRaw);
+        const fecha = isNaN(fechaObj)
+          ? fechaRaw
+          : `${String(fechaObj.getDate()).padStart(2, "0")}-${String(fechaObj.getMonth() + 1).padStart(2, "0")}-${fechaObj.getFullYear()}`;
+        const estudiante = String(row["estudiante"] || "").trim();
+        const concepto = String(row["concepto"] || "").trim();
+        const numfac = String(row["numfac"] || "").trim();
+        const valor = parseFloat(String(row["valor"]).replace(/[^\d.-]/g, "")) || 0;
+        totalValorPagos += valor;
+    
+        // Salto de página
+        if (py + pRowH > doc.page.height - 60) {
+          doc.addPage();
+          py = 50;
+          //drawPagosHeaders(py);
+          py += pRowH;
+        }
+    
+        // Fondo alterno
+        if (i % 2 === 0)
+          fillRect(doc, pPos[0], py, totalWidthPagos, pRowH, "#fafafa");
+    
+        // Bordes
+        let px = pPos[0];
+        Object.values(pCols).forEach(cw => {
+          strokeRect(doc, px, py, cw, pRowH);
+          px += cw;
+        });
+    
+        // Texto
+        const textY = py + 7.5;
+        doc.font("Helvetica").fontSize(9).fillColor("black");
+        doc.text(String(i + 1), pPos[0] + 3, textY, { width: pCols.n - 6, align: "center" });
+        doc.text(fecha, pPos[1] + 3, textY, { width: pCols.fecha - 6, align: "center" });
+        doc.text(estudiante, pPos[2] + 4, textY, { width: pCols.estudiante - 8, align: "left" });
+        doc.text(concepto, pPos[3] + 4, textY, { width: pCols.concepto - 8, align: "left" });
+        doc.text(numfac, pPos[4] + 4, textY, { width: pCols.numfac - 8, align: "left" });
+        doc.text(formatNumber(valor), pPos[5] + 4, textY, { width: pCols.valor - 8, align: "right" });
+        py += pRowH;
+      });
+    
+      // ===================
+      // TOTAL FINAL
+      // ===================
+      if (py + pRowH > doc.page.height - 60) {
+        doc.addPage();
+        py = 50;
+      }
+    
+      fillRect(doc, pPos[0], py, totalWidthPagos, pRowH, "#e6e6e6");
+      strokeRect(doc, pPos[0], py, totalWidthPagos, pRowH);
+      strokeRect(doc, pPos[5], py, pCols.valor, pRowH);
+    
+      const totalTextY = py + 7;
+      const firstFiveWidth = Object.values(pCols).slice(0, 5).reduce((a, b) => a + b, 0);
+    
+      doc.font("Helvetica-Bold").fontSize(9).fillColor("black");
+      doc.text("TOTAL DE VALORES ENTREGADOS", pPos[0] + 4, totalTextY, {
+        width: firstFiveWidth - 8,
+        align: "right"
+      });
+      doc.text(formatNumber(totalValorPagos), pPos[5] + 4, totalTextY, {
+        width: pCols.valor - 8,
+        align: "right"
+      });
+
+      
     }
 
     // =============================
