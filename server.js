@@ -317,39 +317,48 @@ const vagueMatrix = vagueRecords.map(row => {
   return { estudiante, gasto };
 }).filter(r => r.estudiante && !isNaN(r.gasto));
 
-vagueMatrix.sort((a, b) => b.gasto - a.gasto);
+if (vagueMatrix.length === 0) {
+  doc.font("Helvetica-Oblique").fontSize(10).text("No hay datos para graficar.");
+} else {
+  vagueMatrix.sort((a, b) => b.gasto - a.gasto);
 
-const totalGasto = vagueMatrix.reduce((sum, r) => sum + r.gasto, 0);
-const maxGasto = Math.max(...vagueMatrix.map(r => r.gasto));
-    
-const labelWidth = 18;
-const barMaxChars = 40;
-const spacing = 3;
+  const totalGasto = vagueMatrix.reduce((sum, r) => sum + r.gasto, 0);
+  const maxGasto = Math.max(...vagueMatrix.map(r => r.gasto));
 
-const fontPath = path.join(__dirname, "fuentes", "ttf", "DejaVuSans.ttf");
-doc.registerFont("DejaVuSans", fontPath);
-doc.font("DejaVuSans").fontSize(9).fillColor("black");
+  const marginLeft = 80;
+  const barMaxWidth = 250;
+  const barHeight = 10;
+  const spacing = 8;
+  let y = doc.y;
 
-//doc.font("Courier").fontSize(9).fillColor("black");
+  vagueMatrix.forEach(({ estudiante, gasto }) => {
+    if (y + barHeight + spacing > doc.page.height - 50) {
+      doc.addPage();
+      y = 50;
+    }
 
-vagueMatrix.forEach(({ estudiante, gasto }) => {
-  if (doc.y + 15 > doc.page.height - 50) {
-    doc.addPage();
-    doc.y = 50;
-  }
+    const porcentaje = totalGasto > 0 ? (gasto / totalGasto) * 100 : 0;
+    const barWidth = maxGasto > 0 ? (gasto / maxGasto) * barMaxWidth : 0;
 
-  const porcentaje = totalGasto > 0 ? (gasto / totalGasto) * 100 : 0;
-  const barLength = maxGasto > 0 ? Math.round((gasto / maxGasto) * barMaxChars) : 0;
+    // Nombre del estudiante
+    doc.font("Helvetica").fontSize(9).fillColor("black")
+      .text(estudiante, 50, y + 1, { width: 120, align: "left" });
 
-  // Reproducir barra sólida
-  const bar = "█".repeat(barLength).padEnd(barMaxChars, " ");
+    // Barra
+    fillRect(doc, marginLeft, y, barWidth, barHeight, "#4B9CD3");
+    strokeRect(doc, marginLeft, y, barMaxWidth, barHeight);
 
-  const nombre = estudiante.padEnd(labelWidth).substring(0, labelWidth);
-  const legend = `${formatNumber(gasto)} — ${porcentaje.toFixed(2)}%`;
+    // Valor numérico y %
+    const legend = `${formatNumber(gasto)} (${porcentaje.toFixed(2)}%)`;
+    doc.font("Helvetica").fontSize(9).fillColor("black")
+      .text(legend, marginLeft + barMaxWidth + 10, y + 1, { width: 120, align: "left" });
 
-  const line = `${nombre} | ${bar} | ${legend}`;
-  doc.text(line, marginLeft, doc.y);
-});
+    y += barHeight + spacing;
+  });
+
+  // Actualiza posición final del cursor
+  doc.y = y + 10;
+}
     
     // Finalizar PDF
     doc.end();
