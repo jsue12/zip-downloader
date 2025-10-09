@@ -386,7 +386,7 @@ if (pagosRecords.length === 0) {
     const legend = `${formatNumber(gasto)} — ${porcentaje.toFixed(2)}%`;
 
     const line = `${nombre} | ${bar} | ${legend}`;
-    doc.text(line, marginLeft, doc.y, { continued: false });
+    doc.text(line, 50, doc.y, { continued: false });
   });
 
   // TABLA DE PAGOS
