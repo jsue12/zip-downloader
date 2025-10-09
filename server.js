@@ -98,7 +98,7 @@ app.get("/generar-reporte", async (req, res) => {
         const total = pages.length;
         p.switchToPage(i);
         p.font("Helvetica").fontSize(9).fillColor("black")
-          .text(`Página ${pageNum} de ${total}`, 50, 50, { align: "right" });
+          .text(`Página ${pageNum} de ${total}`, 50, 30, { align: "right" });
       });
     };
     
@@ -527,6 +527,8 @@ doc.moveDown(1);
   });
 }
 
+drawPageNumbers();
+    
     // Finalizar PDF
     doc.end();
     console.log("[done] PDF stream ended ✅");
