@@ -4,104 +4,227 @@ import csvtojson from "csvtojson";
 
 const app = express();
 
+// Middleware para logging de requests
+app.use((req, res, next) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
+  next();
+});
+
+// Validación de URLs
+const isValidUrl = (string) => {
+  try {
+    const url = new URL(string);
+    return url.protocol === 'http:' || url.protocol === 'https:';
+  } catch (_) {
+    return false;
+  }
+};
+
+// Función para formatear números
+const formatNumber = (n) => {
+  const num = parseFloat(String(n).replace(/[^\d.-]/g, "")) || 0;
+  return num.toLocaleString("es-EC", { 
+    minimumFractionDigits: 2, 
+    maximumFractionDigits: 2, 
+    useGrouping: true 
+  });
+};
+
+// Funciones auxiliares para PDF
+const fillRect = (doc, x, y, w, h, c) => {
+  doc.save().rect(x, y, w, h).fill(c).restore();
+};
+
+const strokeRect = (doc, x, y, w, h) => {
+  doc.save().strokeColor("#000").lineWidth(0.5).rect(x, y, w, h).stroke().restore();
+};
+
+// Función para formatear fecha
+const formatDate = (dateString) => {
+  try {
+    const date = new Date(dateString);
+    if (isNaN(date)) return dateString;
+    
+    return date.toLocaleDateString("es-EC", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric"
+    });
+  } catch (error) {
+    return dateString;
+  }
+};
+
 app.get("/generar-reporte", async (req, res) => {
   console.log("[start] /generar-reporte request received");
 
   try {
     const urlsParam = req.query.url;
     if (!urlsParam) {
-      return res.status(400).send("Error: Debes incluir el parámetro 'url' con las URLs separadas por comas.");
+      return res.status(400).json({ 
+        error: "Debes incluir el parámetro 'url' con las URLs separadas por comas." 
+      });
     }
 
     const urls = urlsParam.split(",").map(u => u.trim()).filter(Boolean);
+    
+    // Validar URLs
+    const invalidUrls = urls.filter(url => !isValidUrl(url));
+    if (invalidUrls.length > 0) {
+      return res.status(400).json({
+        error: `URLs inválidas: ${invalidUrls.join(", ")}`
+      });
+    }
 
-    // ✅ Node 18+ ya tiene fetch incorporado
+    // Descargar y procesar CSVs
     const csvDataArr = [];
-    for (const u of urls) {
+    for (const url of urls) {
       try {
-        const resp = await fetch(u);
-        if (!resp.ok) {
-          console.warn("No se pudo leer:", u);
+        console.log(`[fetch] Descargando: ${url}`);
+        const response = await fetch(url, {
+          timeout: 30000,
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (compatible; ReportGenerator/1.0)'
+          }
+        });
+        
+        if (!response.ok) {
+          console.warn(`[fetch] Error ${response.status} para: ${url}`);
           continue;
         }
-        const text = await resp.text();
-        const json = await csvtojson().fromString(text);
-        csvDataArr.push({ url: u, data: json });
-      } catch (err) {
-        console.error("Error cargando:", u, err);
+
+        const text = await response.text();
+        if (!text.trim()) {
+          console.warn(`[fetch] CSV vacío para: ${url}`);
+          continue;
+        }
+
+        const jsonData = await csvtojson({
+          checkType: false,
+          trim: true
+        }).fromString(text);
+
+        csvDataArr.push({ 
+          url, 
+          data: jsonData,
+          filename: url.split('/').pop() || 'unknown.csv'
+        });
+        
+        console.log(`[fetch] Procesado: ${url} (${jsonData.length} registros)`);
+      } catch (error) {
+        console.error(`[fetch] Error cargando ${url}:`, error.message);
       }
     }
 
+    if (csvDataArr.length === 0) {
+      return res.status(404).json({ 
+        error: "No se pudieron cargar ninguno de los archivos CSV proporcionados." 
+      });
+    }
+
     // =============================
-    // ARCHIVO brawny-letters
+    // PROCESAR ARCHIVOS ESPECÍFICOS
     // =============================
-    const brawnyEntry = csvDataArr.find(c => c.url.toLowerCase().includes("brawny-letters"));
+
+    // ARCHIVO brawny-letters (resumen ejecutivo)
+    const brawnyEntry = csvDataArr.find(c => 
+      c.filename.toLowerCase().includes("brawny-letters") || 
+      c.url.toLowerCase().includes("brawny-letters")
+    );
+    
     if (!brawnyEntry || !brawnyEntry.data || brawnyEntry.data.length === 0) {
-      return res.status(404).send("No se encontró o no se pudo leer brawny-letters.csv");
+      return res.status(404).json({ 
+        error: "No se encontró o no se pudo leer brawny-letters.csv" 
+      });
     }
 
     const brawnyRow = brawnyEntry.data[0] || {};
-    const keysB = Object.keys(brawnyRow);
-    const recibidos = parseFloat(brawnyRow[keysB[0]] || 0);
-    const entregados = parseFloat(brawnyRow[keysB[1]] || 0);
-    const saldo = parseFloat(brawnyRow[keysB[2]] || 0);
+    const brawnyKeys = Object.keys(brawnyRow);
+    const recibidos = parseFloat(brawnyRow[brawnyKeys[0]] || 0);
+    const entregados = parseFloat(brawnyRow[brawnyKeys[1]] || 0);
+    const saldo = parseFloat(brawnyRow[brawnyKeys[2]] || 0);
 
-    // =============================
-    // DEMÁS ARCHIVOS
-    // =============================
-    const vagueEntry = csvDataArr.find(c => c.url.toLowerCase().includes("vague-stage"));
-    const vagueRecords = vagueEntry?.data?.filter(r => Object.keys(r).length > 0) || [];
+    // ARCHIVOS adicionales
+    const vagueEntry = csvDataArr.find(c => 
+      c.filename.toLowerCase().includes("vague-stage") ||
+      c.url.toLowerCase().includes("vague-stage")
+    );
+    const vagueRecords = vagueEntry?.data?.filter(r => 
+      Object.keys(r).length > 0 && Object.values(r).some(v => v !== null && v !== "")
+    ) || [];
 
-    const tellingEntry = csvDataArr.find(c => c.url.toLowerCase().includes("telling-match"));
-    const tellingRecords = tellingEntry?.data?.filter(r => Object.keys(r).length > 0) || [];
+    const tellingEntry = csvDataArr.find(c => 
+      c.filename.toLowerCase().includes("telling-match") ||
+      c.url.toLowerCase().includes("telling-match")
+    );
+    const tellingRecords = tellingEntry?.data?.filter(r => 
+      Object.keys(r).length > 0 && Object.values(r).some(v => v !== null && v !== "")
+    ) || [];
 
-    const pagosEntry = csvDataArr.find(c => c.url.toLowerCase().includes("pagos"));
-    const pagosRecords = pagosEntry?.data?.filter(r => Object.keys(r).length > 0) || [];
+    const pagosEntry = csvDataArr.find(c => 
+      c.filename.toLowerCase().includes("pagos") ||
+      c.url.toLowerCase().includes("pagos")
+    );
+    const pagosRecords = pagosEntry?.data?.filter(r => 
+      Object.keys(r).length > 0 && Object.values(r).some(v => v !== null && v !== "")
+    ) || [];
 
     // =============================
     // CREAR PDF
     // =============================
     res.setHeader("Content-Type", "application/pdf");
-    res.setHeader("Content-Disposition", "attachment; filename=reporte.pdf");
+    res.setHeader("Content-Disposition", `attachment; filename=reporte-${Date.now()}.pdf`);
 
-    const doc = new PDFDocument({ margin: 50, size: "A4" });
+    const doc = new PDFDocument({ 
+      margin: 50, 
+      size: "A4",
+      info: {
+        Title: "Reporte de Transacciones",
+        Author: "Sistema de Reportes",
+        CreationDate: new Date()
+      }
+    });
+
     doc.pipe(res);
-
-    const formatNumber = n => {
-      const num = parseFloat(String(n).replace(/[^\d.-]/g, "")) || 0;
-      return num.toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2, useGrouping: true });
-    };
-    const fillRect = (d, x, y, w, h, c) => d.save().rect(x, y, w, h).fill(c).restore();
-    const strokeRect = (d, x, y, w, h) => d.save().strokeColor("#000").rect(x, y, w, h).stroke().restore();
 
     // =============================
     // ENCABEZADO
     // =============================
-    doc.font("Helvetica-Bold").fontSize(14).text("REPORTE DE TRANSACCIONES", { align: "center" });
-    doc.moveDown();
-    doc.font("Helvetica-Bold").fontSize(11).text("TESORERO:", { continued: true })
-      .font("Helvetica").text(" JUAN PABLO BARBA MEDINA");
+    doc.font("Helvetica-Bold").fontSize(16).fillColor("#2c3e50")
+       .text("REPORTE DE TRANSACCIONES", { align: "center" });
+    doc.moveDown(0.5);
+    
+    doc.fontSize(10).fillColor("#34495e");
+    doc.font("Helvetica-Bold").text("TESORERO:", { continued: true })
+       .font("Helvetica").text(" JUAN PABLO BARBA MEDINA");
     doc.font("Helvetica-Bold").text("FECHA DEL INFORME:", { continued: true })
-      .font("Helvetica").text(` ${new Date().toLocaleDateString("es-EC")}`);
+       .font("Helvetica").text(` ${new Date().toLocaleDateString("es-EC")}`);
     doc.moveDown();
 
     // =============================
     // RESUMEN EJECUTIVO
     // =============================
-    doc.font("Helvetica-Bold").fontSize(12).text("RESUMEN EJECUTIVO");
+    doc.font("Helvetica-Bold").fontSize(12).fillColor("#2c3e50")
+       .text("RESUMEN EJECUTIVO");
     doc.moveDown(0.5);
-    doc.font("Helvetica").fontSize(11);
-    doc.text(`VALORES RECIBIDOS (+): ${formatNumber(recibidos)}`);
-    doc.text(`VALORES ENTREGADOS (-): ${formatNumber(entregados)}`);
-    doc.font("Helvetica-Bold").text(`SALDO TOTAL (=): ${formatNumber(saldo)}`);
-    doc.moveDown().moveTo(50, doc.y).lineTo(545, doc.y).stroke();
+    
+    doc.font("Helvetica").fontSize(11).fillColor("#2c3e50");
+    doc.text(`VALORES RECIBIDOS (+): $ ${formatNumber(recibidos)}`, { indent: 20 });
+    doc.text(`VALORES ENTREGADOS (-): $ ${formatNumber(entregados)}`, { indent: 20 });
+    doc.font("Helvetica-Bold").text(`SALDO TOTAL (=): $ ${formatNumber(saldo)}`, { indent: 20 });
+    
+    doc.moveDown();
+    doc.moveTo(50, doc.y).lineTo(545, doc.y).strokeColor("#bdc3c7").stroke();
     doc.moveDown();
 
     // ==========================================================
-    // SECCIÓN: LISTADO DE ESTUDIANTES (solo si hay datos)
+    // SECCIÓN: LISTADO DE ESTUDIANTES
     // ==========================================================
     if (vagueRecords.length > 0) {
-      doc.font("Helvetica-Bold").fontSize(12).text("LISTADO DE ESTUDIANTES");
+      if (doc.y > 600) doc.addPage();
+      
+      doc.font("Helvetica-Bold").fontSize(12).fillColor("#2c3e50")
+         .text("LISTADO DE ESTUDIANTES");
       doc.moveDown(0.5);
 
       const marginLeft = 50;
@@ -109,55 +232,88 @@ app.get("/generar-reporte", async (req, res) => {
       const columns = Object.values(colWidths);
       const positions = [];
       let accX = marginLeft;
-      for (let i = 0; i < columns.length; i++) {
+      
+      for (const width of columns) {
         positions.push(accX);
-        accX += columns[i];
+        accX += width;
       }
+
       const rowHeight = 22;
       const headers = ["N°", "ESTUDIANTE", "CUOTAS", "ABONOS", "SALDOS", "ESTADO"];
 
       const drawHeaders = (yPos) => {
-        headers.forEach((h, i) => {
-          fillRect(doc, positions[i], yPos, columns[i], rowHeight, "#e6e6e6");
-          strokeRect(doc, positions[i], yPos, columns[i], rowHeight);
-          doc.font("Helvetica-Bold").fontSize(10).fillColor("black")
-            .text(h, positions[i] + 4, yPos + 7, { width: columns[i] - 8, align: "center" });
+        headers.forEach((header, index) => {
+          fillRect(doc, positions[index], yPos, columns[index], rowHeight, "#ecf0f1");
+          strokeRect(doc, positions[index], yPos, columns[index], rowHeight);
+          doc.font("Helvetica-Bold").fontSize(9).fillColor("#2c3e50")
+             .text(header, positions[index] + 4, yPos + 7, { 
+               width: columns[index] - 8, 
+               align: "center" 
+             });
         });
       };
 
       let y = doc.y;
       drawHeaders(y);
       y += rowHeight;
+      
       let totalCuotas = 0, totalAbonos = 0, totalSaldos = 0;
 
-      vagueRecords.forEach((row, i) => {
+      vagueRecords.forEach((row, index) => {
         const keys = Object.keys(row);
-        const estudiante = String(row[keys[0]] ?? "");
+        const estudiante = String(row[keys[0]] ?? "").trim();
         const cuotas = parseFloat(row[keys[1]] || 0);
         const abonos = parseFloat(row[keys[2]] || 0);
         const saldos = parseFloat(row[keys[3]] || 0);
         const estado = String(row[keys[5]] ?? "").trim().toUpperCase();
 
-        totalCuotas += cuotas; totalAbonos += abonos; totalSaldos += saldos;
-        if (y + rowHeight > doc.page.height - 60) { doc.addPage(); y = 50; drawHeaders(y); y += rowHeight; }
-        if (i % 2 === 0) fillRect(doc, positions[0], y, columns.reduce((a, b) => a + b), rowHeight, "#fafafa");
+        totalCuotas += cuotas;
+        totalAbonos += abonos;
+        totalSaldos += saldos;
 
-        let x = positions[0];
-        columns.forEach((cw) => { strokeRect(doc, x, y, cw, rowHeight); x += cw; });
+        // Salto de página si es necesario
+        if (y + rowHeight > doc.page.height - 60) {
+          doc.addPage();
+          y = 50;
+          drawHeaders(y);
+          y += rowHeight;
+        }
 
+        // Fondo alterno para filas
+        if (index % 2 === 0) {
+          fillRect(doc, positions[0], y, columns.reduce((a, b) => a + b), rowHeight, "#fafafa");
+        }
+
+        // Dibujar bordes de celdas
+        let currentX = positions[0];
+        for (const width of columns) {
+          strokeRect(doc, currentX, y, width, rowHeight);
+          currentX += width;
+        }
+
+        // Contenido de celdas
         const textY = y + 7;
-        doc.font("Helvetica").fontSize(10).fillColor("black");
-        doc.text(String(i + 1), positions[0] + 3, textY, { width: columns[0] - 6, align: "center" });
+        doc.font("Helvetica").fontSize(9).fillColor("#2c3e50");
+        
+        doc.text(String(index + 1), positions[0] + 3, textY, { width: columns[0] - 6, align: "center" });
         doc.text(estudiante, positions[1] + 4, textY, { width: columns[1] - 8, align: "left" });
         doc.text(formatNumber(cuotas), positions[2] + 3, textY, { width: columns[2] - 6, align: "right" });
         doc.text(formatNumber(abonos), positions[3] + 3, textY, { width: columns[3] - 6, align: "right" });
         doc.text(formatNumber(saldos), positions[4] + 3, textY, { width: columns[4] - 6, align: "right" });
 
-        doc.fillColor(estado === "POR COBRAR" ? "red" : estado === "REVISAR" ? "blue" : "black");
+        // Color según estado
+        let estadoColor = "#2c3e50";
+        if (estado === "POR COBRAR") estadoColor = "#e74c3c";
+        else if (estado === "REVISAR") estadoColor = "#3498db";
+        else if (estado === "PAGADO") estadoColor = "#27ae60";
+        
+        doc.fillColor(estadoColor);
         doc.text(estado, positions[5] + 3, textY, { width: columns[5] - 6, align: "center" });
+        
         y += rowHeight;
       });
 
+      // TOTALES
       if (y + rowHeight > doc.page.height - 60) {
         doc.addPage();
         y = 50;
@@ -166,317 +322,349 @@ app.get("/generar-reporte", async (req, res) => {
       const totalWidthAll = columns.reduce((a, b) => a + b);
       const firstTwoWidth = columns[0] + columns[1];
 
-      fillRect(doc, positions[0], y, totalWidthAll, rowHeight, "#e6e6e6");
+      fillRect(doc, positions[0], y, totalWidthAll, rowHeight, "#ecf0f1");
+      
+      // Bordes para celdas combinadas
       strokeRect(doc, positions[0], y, firstTwoWidth, rowHeight);
-      let tx3 = positions[2];
+      let xPos = positions[2];
       for (let i = 2; i < columns.length; i++) {
-        strokeRect(doc, tx3, y, columns[i], rowHeight);
-        tx3 += columns[i];
+        strokeRect(doc, xPos, y, columns[i], rowHeight);
+        xPos += columns[i];
       }
 
       const totalTextY = y + 7;
-      doc.font("Helvetica-Bold").fontSize(10).fillColor("black");
+      doc.font("Helvetica-Bold").fontSize(9).fillColor("#2c3e50");
       doc.text("TOTAL GENERAL", positions[0] + 4, totalTextY, { width: firstTwoWidth - 8, align: "center" });
       doc.text(formatNumber(totalCuotas), positions[2] + 3, totalTextY, { width: columns[2] - 6, align: "right" });
       doc.text(formatNumber(totalAbonos), positions[3] + 3, totalTextY, { width: columns[3] - 6, align: "right" });
       doc.text(formatNumber(totalSaldos), positions[4] + 3, totalTextY, { width: columns[4] - 6, align: "right" });
-      doc.text(" ", positions[5] + 3, totalTextY, { width: columns[5] - 6, align: "center" });
+      doc.text("—", positions[5] + 3, totalTextY, { width: columns[5] - 6, align: "center" });
+      
       doc.moveDown(2);
     }
 
     // ==========================================================
-    // SECCIÓN: TRANSACCIONES DE COBRO (solo si hay datos)
+    // SECCIÓN: TRANSACCIONES DE COBRO
     // ==========================================================
     if (tellingRecords.length > 0) {
-      doc.font("Helvetica-Bold").fontSize(12);
-      doc.text("TRANSACCIONES DE COBRO", 50, doc.y, { align: "left", width: 500 });
-      doc.moveDown(1);
-  
-      const tMargin = 50;
-      const tRowH = 22;
-      const tCols = { n: 35, fecha: 69, estudiante: 135, banco: 101, comprobante: 90, valor: 65 };
-      const tPos = [
-        tMargin,
-        tMargin + tCols.n,
-        tMargin + tCols.n + tCols.fecha,
-        tMargin + tCols.n + tCols.fecha + tCols.estudiante,
-        tMargin + tCols.n + tCols.fecha + tCols.estudiante + tCols.banco,
-        tMargin + tCols.n + tCols.fecha + tCols.estudiante + tCols.banco + tCols.comprobante
-      ];
-      const tHeaders = ["N°", "FECHA", "ESTUDIANTE", "BANCO", "# COMPROBANTE", "VALOR"];
-      let ty = doc.y;
-  
-      const drawTellingHeaders = (yPos) => {
-        tHeaders.forEach((h, i) => {
-          fillRect(doc, tPos[i], yPos, Object.values(tCols)[i], tRowH, "#e6e6e6");
-          strokeRect(doc, tPos[i], yPos, Object.values(tCols)[i], tRowH);
-          doc.font("Helvetica-Bold").fontSize(9).fillColor("black")
-            .text(h, tPos[i] + 4, yPos + 7.5, { width: Object.values(tCols)[i] - 8, align: "center" });
+      if (doc.y + 100 > doc.page.height - 50) doc.addPage();
+      
+      doc.font("Helvetica-Bold").fontSize(12).fillColor("#2c3e50")
+         .text("TRANSACCIONES DE COBRO");
+      doc.moveDown(0.5);
+
+      const margin = 50;
+      const rowHeight = 22;
+      const colWidths = { nro: 35, fecha: 69, estudiante: 135, banco: 101, comprobante: 90, valor: 65 };
+      const positions = [];
+      let currentX = margin;
+      
+      for (const width of Object.values(colWidths)) {
+        positions.push(currentX);
+        currentX += width;
+      }
+
+      const headers = ["N°", "FECHA", "ESTUDIANTE", "BANCO", "# COMPROBANTE", "VALOR"];
+
+      const drawTableHeaders = (yPos) => {
+        headers.forEach((header, index) => {
+          const width = Object.values(colWidths)[index];
+          fillRect(doc, positions[index], yPos, width, rowHeight, "#ecf0f1");
+          strokeRect(doc, positions[index], yPos, width, rowHeight);
+          doc.font("Helvetica-Bold").fontSize(9).fillColor("#2c3e50")
+             .text(header, positions[index] + 4, yPos + 7.5, { 
+               width: width - 8, 
+               align: "center" 
+             });
         });
       };
-  
-      drawTellingHeaders(ty);
-      ty += tRowH;
-  
+
+      let y = doc.y;
+      drawTableHeaders(y);
+      y += rowHeight;
+
       let totalValor = 0;
-      const tellingMatrix = tellingRecords.map(obj => Object.values(obj));
-  
-      tellingMatrix.forEach((row, i) => {
-        // Acceder por índice según orden de columnas
-        const fechaRaw = String(row[0] || "");
-        const estudiante = String(row[1] || "").trim();
-        const banco = String(row[2] || "").trim();
-        const comp = String(row[3] || "");
-        const valora = parseFloat(String(row[4]).replace(/[^\d.-]/g, "")) || 0;
-        totalValor += valora;
-  
-        // Formatear fecha si es válida
-        const fechaObj = new Date(fechaRaw);
-        const fecha = isNaN(fechaObj)
-          ? fechaRaw
-          : `${String(fechaObj.getDate()).padStart(2, "0")}-${String(fechaObj.getMonth() + 1).padStart(2, "0")}-${fechaObj.getFullYear()}`;
-  
-        // Salto de página si es necesario
-        if (ty + tRowH > doc.page.height - 60) {
+
+      tellingRecords.forEach((record, index) => {
+        const values = Object.values(record);
+        const fecha = formatDate(values[0] || "");
+        const estudiante = String(values[1] || "").trim();
+        const banco = String(values[2] || "").trim();
+        const comprobante = String(values[3] || "");
+        const valor = parseFloat(String(values[4]).replace(/[^\d.-]/g, "")) || 0;
+        
+        totalValor += valor;
+
+        if (y + rowHeight > doc.page.height - 60) {
           doc.addPage();
-          ty = 50;
-          //drawTellingHeaders(ty);
-          ty += tRowH;
+          y = 50;
+          drawTableHeaders(y);
+          y += rowHeight;
         }
-  
-        // Fondo alterno
-        if (i % 2 === 0) fillRect(doc, tPos[0], ty, 495, tRowH, "#fafafa");
-  
-        // Bordes de fila
-        let tx2 = tPos[0];
-        Object.values(tCols).forEach((cw) => { strokeRect(doc, tx2, ty, cw, tRowH); tx2 += cw; });
-  
-        // Texto en celdas
-        const tTextY = ty + 7.5;
-        doc.font("Helvetica").fontSize(9).fillColor("black");
-        doc.text(String(i + 1), tPos[0] + 3, tTextY, { width: tCols.n - 6, align: "center" });
-        doc.text(fecha, tPos[1] + 3, tTextY, { width: tCols.fecha - 6, align: "center" });
-        doc.text(estudiante, tPos[2] + 4, tTextY, { width: tCols.estudiante - 8, align: "left" });
-        doc.text(banco, tPos[3] + 4, tTextY, { width: tCols.banco - 8, align: "left" });
-        doc.text(comp, tPos[4] + 4, tTextY, { width: tCols.comprobante - 8, align: "left" });
-        doc.text(formatNumber(valora), tPos[5] + 3, tTextY, { width: tCols.valor - 6, align: "right" });
-  
-        ty += tRowH;
+
+        if (index % 2 === 0) {
+          fillRect(doc, positions[0], y, 495, rowHeight, "#fafafa");
+        }
+
+        let x = positions[0];
+        for (const width of Object.values(colWidths)) {
+          strokeRect(doc, x, y, width, rowHeight);
+          x += width;
+        }
+
+        const textY = y + 7.5;
+        doc.font("Helvetica").fontSize(9).fillColor("#2c3e50");
+        doc.text(String(index + 1), positions[0] + 3, textY, { width: colWidths.nro - 6, align: "center" });
+        doc.text(fecha, positions[1] + 3, textY, { width: colWidths.fecha - 6, align: "center" });
+        doc.text(estudiante, positions[2] + 4, textY, { width: colWidths.estudiante - 8, align: "left" });
+        doc.text(banco, positions[3] + 4, textY, { width: colWidths.banco - 8, align: "left" });
+        doc.text(comprobante, positions[4] + 4, textY, { width: colWidths.comprobante - 8, align: "left" });
+        doc.text(formatNumber(valor), positions[5] + 3, textY, { width: colWidths.valor - 6, align: "right" });
+
+        y += rowHeight;
       });
-  
-      // ===================
-      // TOTAL FINAL
-      // ===================
-      if (ty + tRowH > doc.page.height - 60) { doc.addPage(); ty = 50; }
-  
-      const totalWidth = Object.values(tCols).slice(0, 5).reduce((a, b) => a + b, 0); // ancho de las 5 primeras columnas
-  
-      // Fondo gris de ambas celdas
-      fillRect(doc, tPos[0], ty, totalWidth + tCols.valor, tRowH, "#e6e6e6");
-  
-      // Bordes
-      strokeRect(doc, tPos[0], ty, totalWidth, tRowH);        // celda combinada
-      strokeRect(doc, tPos[5], ty, tCols.valor, tRowH);       // celda de valor
-  
-      // Texto centrado verticalmente
-      const tTextY = ty + 7.5;
-  
-      doc.font("Helvetica-Bold").fontSize(9).fillColor("black");
-      doc.text("TOTAL DE VALORES RECIBIDOS", tPos[0] + 4, tTextY, { width: totalWidth - 8, align: "right" });
-      doc.text(formatNumber(totalValor), tPos[5] + 3, tTextY, { width: tCols.valor - 6, align: "right" });
+
+      // TOTAL TRANSACCIONES DE COBRO
+      if (y + rowHeight > doc.page.height - 60) {
+        doc.addPage();
+        y = 50;
+      }
+
+      const totalWidth = Object.values(colWidths).slice(0, 5).reduce((a, b) => a + b, 0);
+
+      fillRect(doc, positions[0], y, totalWidth + colWidths.valor, rowHeight, "#ecf0f1");
+      strokeRect(doc, positions[0], y, totalWidth, rowHeight);
+      strokeRect(doc, positions[5], y, colWidths.valor, rowHeight);
+
+      const totalTextY = y + 7.5;
+      doc.font("Helvetica-Bold").fontSize(9).fillColor("#2c3e50");
+      doc.text("TOTAL DE VALORES RECIBIDOS", positions[0] + 4, totalTextY, { 
+        width: totalWidth - 8, 
+        align: "right" 
+      });
+      doc.text(formatNumber(totalValor), positions[5] + 3, totalTextY, { 
+        width: colWidths.valor - 6, 
+        align: "right" 
+      });
+      
       doc.moveDown(2);
     }
 
     // ==========================================================
-    // SECCIÓN: RESUMEN DE VALORES PAGADOS (solo si hay datos)
+    // SECCIÓN: RESUMEN DE VALORES PAGADOS
     // ==========================================================
     if (vagueRecords.length > 0) {
-        if (doc.y + 80 > doc.page.height - 50) {
+      if (doc.y + 80 > doc.page.height - 50) doc.addPage();
+
+      doc.font("Helvetica-Bold").fontSize(12).fillColor("#2c3e50")
+         .text("RESUMEN DE VALORES PAGADOS");
+      doc.moveDown(0.5);
+
+      const gastosData = vagueRecords.map(row => {
+        const keys = Object.keys(row);
+        return {
+          estudiante: String(row[keys[0]] || "").trim(),
+          gasto: parseFloat(row[keys[4]] || 0)
+        };
+      }).filter(item => item.estudiante && !isNaN(item.gasto));
+
+      gastosData.sort((a, b) => b.gasto - a.gasto);
+
+      const totalGasto = gastosData.reduce((sum, item) => sum + item.gasto, 0);
+
+      const labelWidth = 22;
+      const barMaxLength = 40;
+
+      doc.font("Courier").fontSize(9).fillColor("#2c3e50");
+
+      gastosData.forEach(item => {
+        if (doc.y + 15 > doc.page.height - 50) {
           doc.addPage();
           doc.y = 50;
         }
-    
-        doc.font("Helvetica-Bold").fontSize(12);
-        doc.text("RESUMEN DE VALORES PAGADOS", 50, doc.y, { align: "left", width: 500 });
-        doc.moveDown(1);
-    
-        const vagueMatrix = vagueRecords.map(row => {
-          const keys = Object.keys(row);
-          const estudiante = String(row[keys[0]] || "").trim();
-          const gasto = parseFloat(row[keys[4]] || 0);
-          return { estudiante, gasto };
-        }).filter(r => r.estudiante && !isNaN(r.gasto));
-    
-        vagueMatrix.sort((a, b) => b.gasto - a.gasto);
-    
-        const totalGasto = vagueMatrix.reduce((sum, r) => sum + r.gasto, 0);
-        const maxGasto = Math.max(...vagueMatrix.map(r => r.gasto));
-    
-        const labelWidth = 22;
-        const barMaxChars = 40;
-        const barChar = "="; // carácter sólido seguro
-    
-        doc.font("Courier").fontSize(9).fillColor("black");
-    
-        vagueMatrix.forEach(({ estudiante, gasto }) => {
-          if (doc.y + 15 > doc.page.height - 50) {
-            doc.addPage();
-            doc.y = 50;
-          }
-    
-        const porcentaje = totalGasto > 0 ? (gasto / totalGasto) * 100 : 0;
-        const barLength = maxGasto > 0 ? Math.round((gasto / totalGasto) * barMaxChars) : 0;
-    
-        // Reproducir barra sólida
-        const bar = barChar.repeat(barLength).padEnd(barMaxChars, " ");
-    
-        const nombre = estudiante.padEnd(labelWidth).substring(0, labelWidth);
-        const legend = `${formatNumber(gasto)} — ${porcentaje.toFixed(2)}%`;
-    
-        const line = `${nombre} | ${bar} | ${legend}`;
-        doc.text(line, marginLeft, doc.y, { continued: false });
-      });   
+
+        const porcentaje = totalGasto > 0 ? (item.gasto / totalGasto) * 100 : 0;
+        const barLength = totalGasto > 0 ? Math.round((item.gasto / totalGasto) * barMaxLength) : 0;
+        const bar = "█".repeat(barLength).padEnd(barMaxLength, " ");
+
+        const nombre = item.estudiante.padEnd(labelWidth).substring(0, labelWidth);
+        const leyenda = `${formatNumber(item.gasto)} — ${porcentaje.toFixed(2)}%`;
+
+        doc.text(`${nombre} | ${bar} | ${leyenda}`, 50, doc.y);
+      });
       
+      doc.moveDown();
     }
 
     // ==========================================================
-    // SECCIÓN: TRANSACCIONES DE PAGO (solo si hay datos)
+    // SECCIÓN: TRANSACCIONES DE PAGO
     // ==========================================================
     if (pagosRecords.length > 0) {
-      const pagosEntry = csvDataArr.find(c => c.url.toLowerCase().includes("pagos"));
-      const pagosRecords = pagosEntry?.data || [];
+      // Ordenar por fecha
+      pagosRecords.sort((a, b) => {
+        const dateA = new Date(a.fecha || a.Fecha || "");
+        const dateB = new Date(b.fecha || b.Fecha || "");
+        return dateA - dateB;
+      });
+
+      if (doc.y + 100 > doc.page.height - 50) doc.addPage();
+
+      doc.font("Helvetica-Bold").fontSize(12).fillColor("#2c3e50")
+         .text("TRANSACCIONES DE PAGO");
+      doc.moveDown(0.5);
+
+      const margin = 50;
+      const rowHeight = 22;
+      const colWidths = { nro: 35, fecha: 69, estudiante: 135, concepto: 101, numfac: 90, valor: 65 };
+      const positions = [];
+      let currentX = margin;
       
-      // 🧠 ORDENAR POR FECHA ASCENDENTE
-      if (pagosRecords.length > 0) {
-        pagosRecords.sort((a, b) => {
-          const fa = new Date(a["fecha"] || a["Fecha"] || "");
-          const fb = new Date(b["fecha"] || b["Fecha"] || "");
-          return fa - fb;
-        });
+      for (const width of Object.values(colWidths)) {
+        positions.push(currentX);
+        currentX += width;
       }
 
-      if (doc.y + 80 > doc.page.height - 60) {
-        doc.addPage();
-        doc.y = 50;
-      }
-      doc.font("Helvetica-Bold").fontSize(12);
-      doc.text("TRANSACCIONES DE PAGO", 50, doc.y, { align: "left", width: 500 });
-      doc.moveDown(2);
+      const headers = ["N°", "FECHA", "ESTUDIANTE", "CONCEPTO", "# FAC O COT", "VALOR"];
+      const totalWidth = Object.values(colWidths).reduce((a, b) => a + b);
 
-      const pMargin = 50;
-      const pRowH = 22;
-      const pCols = { n: 35, fecha: 69, estudiante: 135, concepto: 101, numfac: 90, valor: 65 };
-      const pHeaders = ["N°", "FECHA", "ESTUDIANTE", "CONCEPTO", "# FAC O COT", "VALOR"];
-      const pPos = [
-        pMargin,
-        pMargin + pCols.n,
-        pMargin + pCols.n + pCols.fecha,
-        pMargin + pCols.n + pCols.fecha + pCols.estudiante,
-        pMargin + pCols.n + pCols.fecha + pCols.estudiante + pCols.concepto,
-        pMargin + pCols.n + pCols.fecha + pCols.estudiante + pCols.concepto + pCols.numfac
-      ];
-      const totalWidthPagos = Object.values(pCols).reduce((a, b) => a + b);
-    
       const drawPagosHeaders = (yPos) => {
-        pHeaders.forEach((h, i) => {
-          fillRect(doc, pPos[i], yPos, Object.values(pCols)[i], pRowH, "#e6e6e6");
-          strokeRect(doc, pPos[i], yPos, Object.values(pCols)[i], pRowH);
-          doc.font("Helvetica-Bold").fontSize(9).fillColor("black")
-            .text(h, pPos[i] + 4, yPos + 7, {
-              width: Object.values(pCols)[i] - 8,
-              align: "center"
-            });
+        headers.forEach((header, index) => {
+          const width = Object.values(colWidths)[index];
+          fillRect(doc, positions[index], yPos, width, rowHeight, "#ecf0f1");
+          strokeRect(doc, positions[index], yPos, width, rowHeight);
+          doc.font("Helvetica-Bold").fontSize(9).fillColor("#2c3e50")
+             .text(header, positions[index] + 4, yPos + 7, {
+               width: width - 8,
+               align: "center"
+             });
         });
       };
-    
-      let py = doc.y;
-      drawPagosHeaders(py);
-      py += pRowH;
-    
+
+      let y = doc.y;
+      drawPagosHeaders(y);
+      y += rowHeight;
+
       let totalValorPagos = 0;
-    
-      pagosRecords.forEach((row, i) => {
-        const fechaRaw = String(row["fecha"] || "").trim();
-        const fechaObj = new Date(fechaRaw);
-        const fecha = isNaN(fechaObj)
-          ? fechaRaw
-          : `${String(fechaObj.getDate()).padStart(2, "0")}-${String(fechaObj.getMonth() + 1).padStart(2, "0")}-${fechaObj.getFullYear()}`;
-        const estudiante = String(row["estudiante"] || "").trim();
-        const concepto = String(row["concepto"] || "").trim();
-        const numfac = String(row["numfac"] || "").trim();
-        const valor = parseFloat(String(row["valor"]).replace(/[^\d.-]/g, "")) || 0;
+
+      pagosRecords.forEach((record, index) => {
+        const fecha = formatDate(record.fecha || record.Fecha || "");
+        const estudiante = String(record.estudiante || record.Estudiante || "").trim();
+        const concepto = String(record.concepto || record.Concepto || "").trim();
+        const numfac = String(record.numfac || record.NumFac || "").trim();
+        const valor = parseFloat(String(record.valor || record.Valor).replace(/[^\d.-]/g, "")) || 0;
+        
         totalValorPagos += valor;
-    
-        // Salto de página
-        if (py + pRowH > doc.page.height - 60) {
+
+        if (y + rowHeight > doc.page.height - 60) {
           doc.addPage();
-          py = 50;
-          //drawPagosHeaders(py);
-          py += pRowH;
+          y = 50;
+          drawPagosHeaders(y);
+          y += rowHeight;
         }
-    
-        // Fondo alterno
-        if (i % 2 === 0)
-          fillRect(doc, pPos[0], py, totalWidthPagos, pRowH, "#fafafa");
-    
-        // Bordes
-        let px = pPos[0];
-        Object.values(pCols).forEach(cw => {
-          strokeRect(doc, px, py, cw, pRowH);
-          px += cw;
-        });
-    
-        // Texto
-        const textY = py + 7.5;
-        doc.font("Helvetica").fontSize(9).fillColor("black");
-        doc.text(String(i + 1), pPos[0] + 3, textY, { width: pCols.n - 6, align: "center" });
-        doc.text(fecha, pPos[1] + 3, textY, { width: pCols.fecha - 6, align: "center" });
-        doc.text(estudiante, pPos[2] + 4, textY, { width: pCols.estudiante - 8, align: "left" });
-        doc.text(concepto, pPos[3] + 4, textY, { width: pCols.concepto - 8, align: "left" });
-        doc.text(numfac, pPos[4] + 4, textY, { width: pCols.numfac - 8, align: "left" });
-        doc.text(formatNumber(valor), pPos[5] + 4, textY, { width: pCols.valor - 8, align: "right" });
-        py += pRowH;
+
+        if (index % 2 === 0) {
+          fillRect(doc, positions[0], y, totalWidth, rowHeight, "#fafafa");
+        }
+
+        let x = positions[0];
+        for (const width of Object.values(colWidths)) {
+          strokeRect(doc, x, y, width, rowHeight);
+          x += width;
+        }
+
+        const textY = y + 7.5;
+        doc.font("Helvetica").fontSize(9).fillColor("#2c3e50");
+        doc.text(String(index + 1), positions[0] + 3, textY, { width: colWidths.nro - 6, align: "center" });
+        doc.text(fecha, positions[1] + 3, textY, { width: colWidths.fecha - 6, align: "center" });
+        doc.text(estudiante, positions[2] + 4, textY, { width: colWidths.estudiante - 8, align: "left" });
+        doc.text(concepto, positions[3] + 4, textY, { width: colWidths.concepto - 8, align: "left" });
+        doc.text(numfac, positions[4] + 4, textY, { width: colWidths.numfac - 8, align: "left" });
+        doc.text(formatNumber(valor), positions[5] + 4, textY, { width: colWidths.valor - 8, align: "right" });
+        
+        y += rowHeight;
       });
-    
-      // ===================
-      // TOTAL FINAL
-      // ===================
-      if (py + pRowH > doc.page.height - 60) {
+
+      // TOTAL TRANSACCIONES DE PAGO
+      if (y + rowHeight > doc.page.height - 60) {
         doc.addPage();
-        py = 50;
+        y = 50;
       }
-    
-      fillRect(doc, pPos[0], py, totalWidthPagos, pRowH, "#e6e6e6");
-      strokeRect(doc, pPos[0], py, totalWidthPagos, pRowH);
-      strokeRect(doc, pPos[5], py, pCols.valor, pRowH);
-    
-      const totalTextY = py + 7;
-      const firstFiveWidth = Object.values(pCols).slice(0, 5).reduce((a, b) => a + b, 0);
-    
-      doc.font("Helvetica-Bold").fontSize(9).fillColor("black");
-      doc.text("TOTAL DE VALORES ENTREGADOS", pPos[0] + 4, totalTextY, {
+
+      fillRect(doc, positions[0], y, totalWidth, rowHeight, "#ecf0f1");
+      strokeRect(doc, positions[0], y, totalWidth, rowHeight);
+      strokeRect(doc, positions[5], y, colWidths.valor, rowHeight);
+
+      const totalTextY = y + 7;
+      const firstFiveWidth = Object.values(colWidths).slice(0, 5).reduce((a, b) => a + b, 0);
+
+      doc.font("Helvetica-Bold").fontSize(9).fillColor("#2c3e50");
+      doc.text("TOTAL DE VALORES ENTREGADOS", positions[0] + 4, totalTextY, {
         width: firstFiveWidth - 8,
         align: "right"
       });
-      doc.text(formatNumber(totalValorPagos), pPos[5] + 4, totalTextY, {
-        width: pCols.valor - 8,
+      doc.text(formatNumber(totalValorPagos), positions[5] + 4, totalTextY, {
+        width: colWidths.valor - 8,
         align: "right"
       });
-
-      
     }
+
+    // =============================
+    // PIE DE PÁGINA
+    // =============================
+    const addFooter = (doc) => {
+      const pageHeight = doc.page.height;
+      doc.fontSize(8).fillColor("#7f8c8d");
+      doc.text(
+        `Generado el ${new Date().toLocaleString("es-EC")} - Página ${doc.bufferedPageRange().count}`,
+        50,
+        pageHeight - 30,
+        { align: "center", width: 500 }
+      );
+    };
+
+    doc.on('pageAdded', () => {
+      addFooter(doc);
+    });
+
+    addFooter(doc);
 
     // =============================
     // FINALIZAR PDF
     // =============================
     doc.end();
-    console.log("[done] PDF stream ended ✅");
 
-  } catch (err) {
-    console.error("Error generando PDF:", err);
-    if (!res.headersSent) res.status(500).send(err.message);
+    doc.on('end', () => {
+      console.log("[done] PDF generado exitosamente ✅");
+    });
+
+  } catch (error) {
+    console.error("[error] Error generando PDF:", error);
+    if (!res.headersSent) {
+      res.status(500).json({ 
+        error: "Error interno del servidor al generar el reporte",
+        details: error.message 
+      });
+    }
   }
 });
 
+// Manejo de errores global
+app.use((error, req, res, next) => {
+  console.error('[global error]', error);
+  res.status(500).json({ 
+    error: "Error interno del servidor",
+    details: process.env.NODE_ENV === 'development' ? error.message : undefined
+  });
+});
+
+// Ruta de salud
+app.get("/health", (req, res) => {
+  res.json({ status: "OK", timestamp: new Date().toISOString() });
+});
+
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Servidor corriendo en puerto ${PORT}`));
+app.listen(PORT, () => {
+  console.log(`🚀 Servidor corriendo en puerto ${PORT}`);
+  console.log(`📊 Endpoint: http://localhost:${PORT}/generar-reporte`);
+  console.log(`❤️  Health: http://localhost:${PORT}/health`);
+});
