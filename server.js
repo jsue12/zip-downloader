@@ -1,4 +1,4 @@
-import express from "express";
+ import express from "express";
 import PDFDocument from "pdfkit";
 import csvtojson from "csvtojson";
 
@@ -348,7 +348,7 @@ vagueMatrix.forEach(({ estudiante, gasto }) => {
   const legend = `${formatNumber(gasto)} — ${porcentaje.toFixed(2)}%`;
 
   const line = `${nombre} | ${bar} | ${legend}`;
-  doc.text(line, marginLeft, doc.y, { continued: false });
+  doc.text(line, marginLeft, doc.y);
 });
     
     // Finalizar PDF
