@@ -3,10 +3,11 @@ import PDFDocument from "pdfkit";
 import csvtojson from "csvtojson";
 import path from "path";
 import { fileURLToPath } from "url";
+import fetch from "node-fetch"; // ✅ necesario si usas Node < 18
 
 const app = express();
 
-// ✅ agregado: configuración para rutas absolutas (necesario para ubicar la fuente)
+// Configuración de rutas absolutas
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -82,7 +83,7 @@ app.get("/generar-reporte", async (req, res) => {
     const doc = new PDFDocument({ margin: 50, size: "A4" });
     doc.pipe(res);
 
-    // ✅ agregado: registrar y usar fuente que soporte el bloque sólido █ (ASCII 219)
+    // ✅ Fuente Unicode (para mostrar █ correctamente)
     const fontPath = path.join(__dirname, "fuentes", "ttf", "DejaVuSans.ttf");
     doc.registerFont("DejaVuSans", fontPath);
 
@@ -90,10 +91,10 @@ app.get("/generar-reporte", async (req, res) => {
       const num = parseFloat(String(n).replace(/[^\d.-]/g, "")) || 0;
       return num.toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     };
-    const fillRect = (d, x, y, w, h, c) => d.save().rect(x, y, w, h).fill(c).restore();
-    const strokeRect = (d, x, y, w, h) => d.save().strokeColor("#000").rect(x, y, w, h).stroke().restore();
 
-    // Encabezado
+    // =============================
+    // ENCABEZADO
+    // =============================
     doc.font("Helvetica-Bold").fontSize(14).text("REPORTE DE TRANSACCIONES", { align: "center" });
     doc.moveDown();
     doc.font("Helvetica-Bold").fontSize(11).text("TESORERO:", { continued: true })
@@ -114,10 +115,8 @@ app.get("/generar-reporte", async (req, res) => {
     doc.moveDown().moveTo(50, doc.y).lineTo(545, doc.y).stroke();
     doc.moveDown();
 
-    // ... [toda la parte intermedia del código de tablas se mantiene igual] ...
-
     // =============================
-    // GRAFICO FINAL
+    // GRÁFICO FINAL — barras con █
     // =============================
     if (doc.y + 80 > doc.page.height - 50) {
       doc.addPage();
@@ -142,10 +141,10 @@ app.get("/generar-reporte", async (req, res) => {
 
     const labelWidth = 18;
     const barMaxChars = 40;
-    const barChar = "█"; // ✅ caracter sólido UTF-8 (equivalente al ASCII 219)
+    const barChar = "█"; // ✅ bloque sólido Unicode
     const spacing = 3;
 
-    // ✅ usar la fuente registrada que soporta este carácter
+    // ✅ usar fuente Unicode
     doc.font("DejaVuSans").fontSize(9).fillColor("black");
 
     vagueMatrix.forEach(({ estudiante, gasto }) => {
@@ -162,7 +161,7 @@ app.get("/generar-reporte", async (req, res) => {
       const legend = `${formatNumber(gasto)} — ${porcentaje.toFixed(2)}%`;
 
       const line = `${nombre} | ${bar} | ${legend}`;
-      doc.text(line, 50, doc.y, { continued: false });
+      doc.text(line, 50, doc.y);
     });
 
     doc.end();
