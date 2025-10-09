@@ -175,7 +175,7 @@ if (vagueRecords.length > 0) {
 
     if (y + rowHeight > doc.page.height - 60) {
       doc.addPage();
-      y = 50;
+      //y = 50;
       //drawHeaders(y);
       y += rowHeight;
     }
