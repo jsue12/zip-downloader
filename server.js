@@ -304,10 +304,10 @@ app.get("/generar-reporte", async (req, res) => {
 
     //GRAFICOS
 
-    //if (doc.y + 80 > doc.page.height - 50) {
-      //doc.addPage();
-      //doc.y = 50;
-    //}
+    if (doc.y + 80 > doc.page.height - 50) {
+      doc.addPage();
+      doc.y = 50;
+    }
 
     doc.font("Helvetica-Bold").fontSize(12);
     doc.text("RESUMEN DE VALORES PAGADOS", 50, doc.y, { align: "left", width: 500 });
@@ -325,7 +325,7 @@ app.get("/generar-reporte", async (req, res) => {
     const totalGasto = vagueMatrix.reduce((sum, r) => sum + r.gasto, 0);
     const maxGasto = Math.max(...vagueMatrix.map(r => r.gasto));
 
-    const labelWidth = 25;
+    const labelWidth = 22;
     const barMaxChars = 40;
     const barChar = "="; // carácter sólido seguro
 
@@ -354,20 +354,47 @@ app.get("/generar-reporte", async (req, res) => {
 // TABLA DE PAGOS (pagos.csv)
 // =============================
 
-    const pagosEntry = csvDataArr.find(c => c.url.toLowerCase().includes("pagos"));
-if (pagosEntry && pagosEntry.data && pagosEntry.data.length > 0) {
-  const pagosRecords = pagosEntry.data;
+  const pagosEntry = csvDataArr.find(c => c.url.toLowerCase().includes("pagos"));
+const pagosRecords = pagosEntry?.data || [];
 
-  // Verificar espacio disponible
-  if (doc.y + 80 > doc.page.height - 60) {
-    doc.addPage();
-    doc.y = 50;
-  }
+// 🧠 ORDENAR POR FECHA ASCENDENTE
+if (pagosRecords.length > 0) {
+  pagosRecords.sort((a, b) => {
+    const fa = new Date(a["fecha"] || a["Fecha"] || "");
+    const fb = new Date(b["fecha"] || b["Fecha"] || "");
+    return fa - fb;
+  });
+}
 
+// =============================
+// ENCABEZADO DE SECCIÓN
+// =============================
+if (doc.y + 80 > doc.page.height - 60) {
+  doc.addPage();
+  doc.y = 50;
+}
+
+doc.moveDown(2);
+doc.font("Helvetica-Bold").fontSize(12);
+doc.text("TRANSACCIONES DE PAGO", 50, doc.y, { align: "left", width: 500 });
+doc.moveDown(1);
+
+// =============================
+// SI NO EXISTEN REGISTROS
+// =============================
+if (pagosRecords.length === 0) {
+  fillRect(doc, 50, doc.y, 495, 25, "#f5f5f5");
+  strokeRect(doc, 50, doc.y, 495, 25);
+  doc.font("Helvetica-Oblique").fontSize(10).fillColor("#555");
+  doc.text("NO EXISTEN REGISTROS EN ESTA SECCIÓN", 50, doc.y + 7, {
+    width: 495,
+    align: "center",
+  });
   doc.moveDown(2);
-  doc.font("Helvetica-Bold").fontSize(12);
-  doc.text("TRANSACCIONES DE PAGO", 50, doc.y, { align: "left", width: 500 });
-  doc.moveDown(1);
+} else {
+  // =============================
+  // DIBUJAR TABLA
+  // =============================
 
   const pMargin = 50;
   const pRowH = 22;
@@ -381,9 +408,8 @@ if (pagosEntry && pagosEntry.data && pagosEntry.data.length > 0) {
     pMargin + pCols.n + pCols.fecha + pCols.estudiante + pCols.concepto,
     pMargin + pCols.n + pCols.fecha + pCols.estudiante + pCols.concepto + pCols.numfac
   ];
-  const totalWidthPagos = Object.values(pCols).reduce((a, b) => a + b); // 495 pt
+  const totalWidthPagos = Object.values(pCols).reduce((a, b) => a + b);
 
-  // Dibujar encabezados
   const drawPagosHeaders = (yPos) => {
     pHeaders.forEach((h, i) => {
       fillRect(doc, pPos[i], yPos, Object.values(pCols)[i], pRowH, "#e6e6e6");
@@ -403,14 +429,18 @@ if (pagosEntry && pagosEntry.data && pagosEntry.data.length > 0) {
   let totalValorPagos = 0;
 
   pagosRecords.forEach((row, i) => {
-    const fecha = String(row["fecha"] || "");
+    const fechaRaw = String(row["fecha"] || "").trim();
+    const fechaObj = new Date(fechaRaw);
+    const fecha = isNaN(fechaObj)
+      ? fechaRaw
+      : `${String(fechaObj.getDate()).padStart(2, "0")}-${String(fechaObj.getMonth() + 1).padStart(2, "0")}-${fechaObj.getFullYear()}`;
     const estudiante = String(row["estudiante"] || "").trim();
     const concepto = String(row["concepto"] || "").trim();
     const numfac = String(row["numfac"] || "").trim();
     const valor = parseFloat(String(row["valor"]).replace(/[^\d.-]/g, "")) || 0;
     totalValorPagos += valor;
 
-    // Control de salto de página
+    // Salto de página
     if (py + pRowH > doc.page.height - 60) {
       doc.addPage();
       py = 50;
@@ -422,7 +452,7 @@ if (pagosEntry && pagosEntry.data && pagosEntry.data.length > 0) {
     if (i % 2 === 0)
       fillRect(doc, pPos[0], py, totalWidthPagos, pRowH, "#fafafa");
 
-    // Bordes de fila
+    // Bordes
     let px = pPos[0];
     Object.values(pCols).forEach(cw => {
       strokeRect(doc, px, py, cw, pRowH);
@@ -430,15 +460,14 @@ if (pagosEntry && pagosEntry.data && pagosEntry.data.length > 0) {
     });
 
     // Texto
-    const textY = py + 7;
+    const textY = py + 7.5;
     doc.font("Helvetica").fontSize(9).fillColor("black");
     doc.text(String(i + 1), pPos[0] + 3, textY, { width: pCols.n - 6, align: "center" });
     doc.text(fecha, pPos[1] + 3, textY, { width: pCols.fecha - 6, align: "center" });
     doc.text(estudiante, pPos[2] + 4, textY, { width: pCols.estudiante - 8, align: "left" });
     doc.text(concepto, pPos[3] + 4, textY, { width: pCols.concepto - 8, align: "left" });
     doc.text(numfac, pPos[4] + 4, textY, { width: pCols.numfac - 8, align: "left" });
-    doc.text(formatNumber(valor), pPos[5] + 4, textY, { width: pCols.valor - 8, align: "left" });
-
+    doc.text(formatNumber(valor), pPos[5] + 4, textY, { width: pCols.valor - 8, align: "right" });
     py += pRowH;
   });
 
@@ -450,11 +479,9 @@ if (pagosEntry && pagosEntry.data && pagosEntry.data.length > 0) {
     py = 50;
   }
 
-  // Fondo gris
   fillRect(doc, pPos[0], py, totalWidthPagos, pRowH, "#e6e6e6");
-
-  // Bordes
   strokeRect(doc, pPos[0], py, totalWidthPagos, pRowH);
+  strokeRect(doc, pPos[5], py, pCols.valor, pRowH);
 
   const totalTextY = py + 7;
   const firstFiveWidth = Object.values(pCols).slice(0, 5).reduce((a, b) => a + b, 0);
@@ -466,7 +493,7 @@ if (pagosEntry && pagosEntry.data && pagosEntry.data.length > 0) {
   });
   doc.text(formatNumber(totalValorPagos), pPos[5] + 4, totalTextY, {
     width: pCols.valor - 8,
-    align: "left"
+    align: "right"
   });
 }
 
