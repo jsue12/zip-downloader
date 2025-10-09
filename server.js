@@ -467,7 +467,7 @@ if (pagosRecords.length === 0) {
     doc.text(estudiante, pPos[2] + 4, textY, { width: pCols.estudiante - 8, align: "left" });
     doc.text(concepto, pPos[3] + 4, textY, { width: pCols.concepto - 8, align: "left" });
     doc.text(numfac, pPos[4] + 4, textY, { width: pCols.numfac - 8, align: "left" });
-    doc.text(formatNumber(valor), pPos[5] + 4, textY, { width: pCols.valor - 8, align: "left" });
+    doc.text(formatNumber(valor), pPos[5] + 4, textY, { width: pCols.valor - 8, align: "right" });
     py += pRowH;
   });
 
@@ -493,7 +493,7 @@ if (pagosRecords.length === 0) {
   });
   doc.text(formatNumber(totalValorPagos), pPos[5] + 4, totalTextY, {
     width: pCols.valor - 8,
-    align: "left"
+    align: "right"
   });
 }
 
