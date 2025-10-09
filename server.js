@@ -90,7 +90,7 @@ app.get("/generar-reporte", async (req, res) => {
     doc.font("Helvetica-Bold").fontSize(11).text("TESORERO:", { continued: true })
       .font("Helvetica").text(" JUAN PABLO BARBA MEDINA");
     doc.font("Helvetica-Bold").text("FECHA DEL INFORME:", { continued: true })
-      .font("Helvetica").text(` ${new Date().toLocaleDateString("es-EC")}`);
+      .font("Helvetica").text( ${new Date().toLocaleDateString("es-EC")});
     doc.moveDown();
 
     // =============================
@@ -99,9 +99,9 @@ app.get("/generar-reporte", async (req, res) => {
     doc.font("Helvetica-Bold").fontSize(12).text("RESUMEN EJECUTIVO");
     doc.moveDown(0.5);
     doc.font("Helvetica").fontSize(11);
-    doc.text(`VALORES RECIBIDOS (+): ${formatNumber(recibidos)}`);
-    doc.text(`VALORES ENTREGADOS (-): ${formatNumber(entregados)}`);
-    doc.font("Helvetica-Bold").text(`SALDO TOTAL (=): ${formatNumber(saldo)}`);
+    doc.text(VALORES RECIBIDOS (+): ${formatNumber(recibidos)});
+    doc.text(VALORES ENTREGADOS (-): ${formatNumber(entregados)});
+    doc.font("Helvetica-Bold").text(SALDO TOTAL (=): ${formatNumber(saldo)});
     doc.moveDown().moveTo(50, doc.y).lineTo(545, doc.y).stroke();
     doc.moveDown();
 
@@ -247,7 +247,7 @@ app.get("/generar-reporte", async (req, res) => {
       const fechaObj = new Date(fechaRaw);
       const fecha = isNaN(fechaObj)
         ? fechaRaw
-        : `${String(fechaObj.getDate()).padStart(2, "0")}-${String(fechaObj.getMonth() + 1).padStart(2, "0")}-${fechaObj.getFullYear()}`;
+        : ${String(fechaObj.getDate()).padStart(2, "0")}-${String(fechaObj.getMonth() + 1).padStart(2, "0")}-${fechaObj.getFullYear()};
     
       // Salto de página si es necesario
       if (ty + tRowH > doc.page.height - 60) {
@@ -321,7 +321,7 @@ vagueMatrix.sort((a, b) => b.gasto - a.gasto);
 
 const totalGasto = vagueMatrix.reduce((sum, r) => sum + r.gasto, 0);
 const maxGasto = Math.max(...vagueMatrix.map(r => r.gasto));
-
+    
 const labelWidth = 18;
 const barMaxChars = 40;
 const barChar = "="; // carácter sólido seguro
@@ -341,9 +341,9 @@ vagueMatrix.forEach(({ estudiante, gasto }) => {
   const bar = barChar.repeat(barLength).padEnd(barMaxChars, " ");
 
   const nombre = estudiante.padEnd(labelWidth).substring(0, labelWidth);
-  const legend = `${formatNumber(gasto)} — ${porcentaje.toFixed(2)}%`;
+  const legend = ${formatNumber(gasto)} — ${porcentaje.toFixed(2)}%;
 
-  const line = `${nombre} | ${bar} | ${legend}`;
+  const line = ${nombre} | ${bar} | ${legend};
   doc.text(line, marginLeft, doc.y, { continued: false });
 });
     
@@ -357,4 +357,6 @@ vagueMatrix.forEach(({ estudiante, gasto }) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Servidor corriendo en puerto ${PORT}`));
+app.listen(PORT, () => console.log(Servidor corriendo en puerto ${PORT}));
+
+corrige este codigo
