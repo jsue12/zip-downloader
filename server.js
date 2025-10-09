@@ -98,7 +98,7 @@ app.get("/generar-reporte", async (req, res) => {
         const total = pages.length;
         p.switchToPage(i);
         p.font("Helvetica").fontSize(9).fillColor("black")
-          .text(`Página ${pageNum} de ${total}`, 50, 30, { align: "right" });
+          .text(`Página ${pageNum} de ${total}`, 50, 25, { align: "right" });
       });
     };
     
