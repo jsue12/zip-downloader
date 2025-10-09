@@ -444,7 +444,7 @@ if (pagosRecords.length === 0) {
     if (py + pRowH > doc.page.height - 60) {
       doc.addPage();
       py = 50;
-      drawPagosHeaders(py);
+      //drawPagosHeaders(py);
       py += pRowH;
     }
 
