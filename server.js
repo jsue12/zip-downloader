@@ -325,7 +325,7 @@ app.get("/generar-reporte", async (req, res) => {
     const totalGasto = vagueMatrix.reduce((sum, r) => sum + r.gasto, 0);
     const maxGasto = Math.max(...vagueMatrix.map(r => r.gasto));
 
-    const labelWidth = 22;
+    const labelWidth = 20;
     const barMaxChars = 40;
     const barChar = "="; // carácter sólido seguro
 
@@ -483,7 +483,7 @@ if (pagosRecords.length === 0) {
   strokeRect(doc, pPos[0], py, totalWidthPagos, pRowH);
   strokeRect(doc, pPos[5], py, pCols.valor, pRowH);
 
-  const totalTextY = py + 7;
+  const totalTextY = py + 7.5;
   const firstFiveWidth = Object.values(pCols).slice(0, 5).reduce((a, b) => a + b, 0);
 
   doc.font("Helvetica-Bold").fontSize(9).fillColor("black");
