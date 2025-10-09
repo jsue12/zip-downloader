@@ -79,7 +79,7 @@ app.get("/generar-reporte", async (req, res) => {
 
     const formatNumber = n => {
       const num = parseFloat(String(n).replace(/[^\d.-]/g, "")) || 0;
-      return num.toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      return num.toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 , useGrouping: true});
     };
     const fillRect = (d, x, y, w, h, c) => d.save().rect(x, y, w, h).fill(c).restore();
     const strokeRect = (d, x, y, w, h) => d.save().strokeColor("#000").rect(x, y, w, h).stroke().restore();
