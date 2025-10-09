@@ -321,17 +321,16 @@ vagueMatrix.sort((a, b) => b.gasto - a.gasto);
 
 const totalGasto = vagueMatrix.reduce((sum, r) => sum + r.gasto, 0);
 const maxGasto = Math.max(...vagueMatrix.map(r => r.gasto));
-
-const path = require('path');
-const fontPath = path.join(__dirname, 'fuentes', 'ttf', 'DejaVuSans.ttf');
-doc.font(fontPath);
     
 const labelWidth = 18;
 const barMaxChars = 40;
-const barChar = String.fromCharCode(219); // carácter sólido seguro
 const spacing = 3;
 
-doc.font("Courier").fontSize(9).fillColor("black");
+const fontPath = path.join(__dirname, "fuentes", "ttf", "DejaVuSans.ttf");
+doc.registerFont("DejaVuSans", fontPath);
+doc.font("DejaVuSans").fontSize(9).fillColor("black");
+
+//doc.font("Courier").fontSize(9).fillColor("black");
 
 vagueMatrix.forEach(({ estudiante, gasto }) => {
   if (doc.y + 15 > doc.page.height - 50) {
@@ -343,7 +342,7 @@ vagueMatrix.forEach(({ estudiante, gasto }) => {
   const barLength = maxGasto > 0 ? Math.round((gasto / maxGasto) * barMaxChars) : 0;
 
   // Reproducir barra sólida
-  const bar = barChar.repeat(barLength).padEnd(barMaxChars, " ");
+  const bar = "█".repeat(barLength).padEnd(barMaxChars, " ");
 
   const nombre = estudiante.padEnd(labelWidth).substring(0, labelWidth);
   const legend = `${formatNumber(gasto)} — ${porcentaje.toFixed(2)}%`;
