@@ -302,9 +302,28 @@ app.get("/generar-reporte", async (req, res) => {
     doc.text(formatNumber(totalValor), tPos[5] + 3, tTextY, { width: tCols.valor - 6, align: "right" });
     doc.moveDown(2);
 
-    //GRAFICOS
+// =============================
+// TABLA DE PAGOS (pagos.csv)
+// =============================
 
-    if (doc.y + 80 > doc.page.height - 50) {
+const pagosEntry = csvDataArr.find(c => c.url.toLowerCase().includes("pagos"));
+const pagosRecords = pagosEntry?.data || [];
+
+// 🧠 ORDENAR POR FECHA ASCENDENTE
+if (pagosRecords.length > 0) {
+  pagosRecords.sort((a, b) => {
+    const fa = new Date(a["fecha"] || a["Fecha"] || "");
+    const fb = new Date(b["fecha"] || b["Fecha"] || "");
+    return fa - fb;
+  });
+}
+
+if (pagosRecords.length === 0) {
+} else {
+
+  //GRAFICOS
+  
+      if (doc.y + 80 > doc.page.height - 50) {
       doc.addPage();
       doc.y = 50;
     }
@@ -350,25 +369,8 @@ app.get("/generar-reporte", async (req, res) => {
     doc.text(line, marginLeft, doc.y, { continued: false });
   });
 
-// =============================
-// TABLA DE PAGOS (pagos.csv)
-// =============================
-
-const pagosEntry = csvDataArr.find(c => c.url.toLowerCase().includes("pagos"));
-const pagosRecords = pagosEntry?.data || [];
-
-// 🧠 ORDENAR POR FECHA ASCENDENTE
-if (pagosRecords.length > 0) {
-  pagosRecords.sort((a, b) => {
-    const fa = new Date(a["fecha"] || a["Fecha"] || "");
-    const fb = new Date(b["fecha"] || b["Fecha"] || "");
-    return fa - fb;
-  });
-}
-
-if (pagosRecords.length === 0) {
-} else {
-
+  // TABLA DE PAGOS
+  
   if (doc.y + 80 > doc.page.height - 60) {
   doc.addPage();
   doc.y = 50;
