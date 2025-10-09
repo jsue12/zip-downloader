@@ -160,7 +160,7 @@ if (vagueRecords.length > 0) {
     if (y + rowHeight > doc.page.height - 60) {
       doc.addPage();
       y = 50;
-      drawHeaders(y);
+      //drawHeaders(y);
       y += rowHeight;
     }
 
@@ -275,7 +275,7 @@ if (tellingRecords.length > 0) {
     if (ty + tRowH > doc.page.height - 60) {
       doc.addPage();
       ty = 50;
-      drawTellingHeaders(ty);
+      //drawTellingHeaders(ty);
       ty += tRowH;
     }
 
@@ -447,7 +447,7 @@ doc.moveDown(1);
     if (py + pRowH > doc.page.height - 60) {
       doc.addPage();
       py = 50;
-      drawPagosHeaders(py);
+      //drawPagosHeaders(py);
       py += pRowH;
     }
 
@@ -499,7 +499,6 @@ doc.moveDown(1);
     align: "right"
   });
 }
-
 
     // Finalizar PDF
     doc.end();
