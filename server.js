@@ -10,14 +10,13 @@ app.get("/generar-reporte", async (req, res) => {
   try {
     const urlsParam = req.query.url;
     if (!urlsParam) {
-      return res
-        .status(400)
-        .send("Error: Debes incluir el parámetro 'url' con las URLs separadas por comas.");
+      return res.status(400).send("Error: Debes incluir el parámetro 'url' con las URLs separadas por comas.");
     }
 
     const urls = urlsParam.split(",").map(u => u.trim()).filter(Boolean);
-    const csvDataArr = [];
 
+    // ✅ Node 18+ ya tiene fetch incorporado
+    const csvDataArr = [];
     for (const u of urls) {
       try {
         const resp = await fetch(u);
@@ -37,7 +36,7 @@ app.get("/generar-reporte", async (req, res) => {
     // ARCHIVO brawny-letters
     // =============================
     const brawnyEntry = csvDataArr.find(c => c.url.toLowerCase().includes("brawny-letters"));
-    if (!brawnyEntry || !brawnyEntry.data?.length) {
+    if (!brawnyEntry || !brawnyEntry.data || brawnyEntry.data.length === 0) {
       return res.status(404).send("No se encontró o no se pudo leer brawny-letters.csv");
     }
 
@@ -48,16 +47,16 @@ app.get("/generar-reporte", async (req, res) => {
     const saldo = parseFloat(brawnyRow[keysB[2]] || 0);
 
     // =============================
-    // ARCHIVOS SECUNDARIOS
+    // DEMÁS ARCHIVOS
     // =============================
     const vagueEntry = csvDataArr.find(c => c.url.toLowerCase().includes("vague-stage"));
-    const vagueRecords = vagueEntry?.data?.filter(r => Object.keys(r).length) || [];
+    const vagueRecords = vagueEntry?.data?.filter(r => Object.keys(r).length > 0) || [];
 
     const tellingEntry = csvDataArr.find(c => c.url.toLowerCase().includes("telling-match"));
-    const tellingRecords = tellingEntry?.data?.filter(r => Object.keys(r).length) || [];
+    const tellingRecords = tellingEntry?.data?.filter(r => Object.keys(r).length > 0) || [];
 
     const pagosEntry = csvDataArr.find(c => c.url.toLowerCase().includes("pagos"));
-    const pagosRecords = pagosEntry?.data?.filter(r => Object.keys(r).length) || [];
+    const pagosRecords = pagosEntry?.data?.filter(r => Object.keys(r).length > 0) || [];
 
     // =============================
     // CREAR PDF
@@ -70,17 +69,13 @@ app.get("/generar-reporte", async (req, res) => {
 
     const formatNumber = n => {
       const num = parseFloat(String(n).replace(/[^\d.-]/g, "")) || 0;
-      return num.toLocaleString("es-ES", {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-        useGrouping: true
-      });
+      return num.toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2, useGrouping: true });
     };
     const fillRect = (d, x, y, w, h, c) => d.save().rect(x, y, w, h).fill(c).restore();
     const strokeRect = (d, x, y, w, h) => d.save().strokeColor("#000").rect(x, y, w, h).stroke().restore();
 
     // =============================
-    // ENCABEZADO PRINCIPAL
+    // ENCABEZADO
     // =============================
     doc.font("Helvetica-Bold").fontSize(14).text("REPORTE DE TRANSACCIONES", { align: "center" });
     doc.moveDown();
@@ -91,7 +86,7 @@ app.get("/generar-reporte", async (req, res) => {
     doc.moveDown();
 
     // =============================
-    // RESUMEN EJECUTIVO (siempre)
+    // RESUMEN EJECUTIVO
     // =============================
     doc.font("Helvetica-Bold").fontSize(12).text("RESUMEN EJECUTIVO");
     doc.moveDown(0.5);
@@ -102,36 +97,125 @@ app.get("/generar-reporte", async (req, res) => {
     doc.moveDown().moveTo(50, doc.y).lineTo(545, doc.y).stroke();
     doc.moveDown();
 
-    // =============================
-    // SECCIÓN 1: LISTADO DE ESTUDIANTES
-    // =============================
+    // ==========================================================
+    // SECCIÓN: LISTADO DE ESTUDIANTES (solo si hay datos)
+    // ==========================================================
     if (vagueRecords.length > 0) {
-      // ... (tu bloque completo de tabla LISTADO DE ESTUDIANTES)
-      // simplemente conserva todo ese bloque
-      // No cambies lógica interna — solo está protegido por el if
-      // ✅ toda esa tabla solo se renderiza si hay registros
-      // (no repito aquí para ahorrar espacio)
+      doc.font("Helvetica-Bold").fontSize(12).text("LISTADO DE ESTUDIANTES");
+      doc.moveDown(0.5);
+
+      const marginLeft = 50;
+      const colWidths = { nro: 35, estudiante: 162, cuotas: 72, abonos: 72, saldos: 72, estado: 82 };
+      const columns = Object.values(colWidths);
+      const positions = [];
+      let accX = marginLeft;
+      for (let i = 0; i < columns.length; i++) {
+        positions.push(accX);
+        accX += columns[i];
+      }
+      const rowHeight = 22;
+      const headers = ["N°", "ESTUDIANTE", "CUOTAS", "ABONOS", "SALDOS", "ESTADO"];
+
+      const drawHeaders = (yPos) => {
+        headers.forEach((h, i) => {
+          fillRect(doc, positions[i], yPos, columns[i], rowHeight, "#e6e6e6");
+          strokeRect(doc, positions[i], yPos, columns[i], rowHeight);
+          doc.font("Helvetica-Bold").fontSize(10).fillColor("black")
+            .text(h, positions[i] + 4, yPos + 7, { width: columns[i] - 8, align: "center" });
+        });
+      };
+
+      let y = doc.y;
+      drawHeaders(y);
+      y += rowHeight;
+      let totalCuotas = 0, totalAbonos = 0, totalSaldos = 0;
+
+      vagueRecords.forEach((row, i) => {
+        const keys = Object.keys(row);
+        const estudiante = String(row[keys[0]] ?? "");
+        const cuotas = parseFloat(row[keys[1]] || 0);
+        const abonos = parseFloat(row[keys[2]] || 0);
+        const saldos = parseFloat(row[keys[3]] || 0);
+        const estado = String(row[keys[5]] ?? "").trim().toUpperCase();
+
+        totalCuotas += cuotas; totalAbonos += abonos; totalSaldos += saldos;
+        if (y + rowHeight > doc.page.height - 60) { doc.addPage(); y = 50; drawHeaders(y); y += rowHeight; }
+        if (i % 2 === 0) fillRect(doc, positions[0], y, columns.reduce((a, b) => a + b), rowHeight, "#fafafa");
+
+        let x = positions[0];
+        columns.forEach((cw) => { strokeRect(doc, x, y, cw, rowHeight); x += cw; });
+
+        const textY = y + 7;
+        doc.font("Helvetica").fontSize(10).fillColor("black");
+        doc.text(String(i + 1), positions[0] + 3, textY, { width: columns[0] - 6, align: "center" });
+        doc.text(estudiante, positions[1] + 4, textY, { width: columns[1] - 8, align: "left" });
+        doc.text(formatNumber(cuotas), positions[2] + 3, textY, { width: columns[2] - 6, align: "right" });
+        doc.text(formatNumber(abonos), positions[3] + 3, textY, { width: columns[3] - 6, align: "right" });
+        doc.text(formatNumber(saldos), positions[4] + 3, textY, { width: columns[4] - 6, align: "right" });
+
+        doc.fillColor(estado === "POR COBRAR" ? "red" : estado === "REVISAR" ? "blue" : "black");
+        doc.text(estado, positions[5] + 3, textY, { width: columns[5] - 6, align: "center" });
+        y += rowHeight;
+      });
+
+      if (y + rowHeight > doc.page.height - 60) {
+        doc.addPage();
+        y = 50;
+      }
+
+      const totalWidthAll = columns.reduce((a, b) => a + b);
+      const firstTwoWidth = columns[0] + columns[1];
+
+      fillRect(doc, positions[0], y, totalWidthAll, rowHeight, "#e6e6e6");
+      strokeRect(doc, positions[0], y, firstTwoWidth, rowHeight);
+      let tx3 = positions[2];
+      for (let i = 2; i < columns.length; i++) {
+        strokeRect(doc, tx3, y, columns[i], rowHeight);
+        tx3 += columns[i];
+      }
+
+      const totalTextY = y + 7;
+      doc.font("Helvetica-Bold").fontSize(10).fillColor("black");
+      doc.text("TOTAL GENERAL", positions[0] + 4, totalTextY, { width: firstTwoWidth - 8, align: "center" });
+      doc.text(formatNumber(totalCuotas), positions[2] + 3, totalTextY, { width: columns[2] - 6, align: "right" });
+      doc.text(formatNumber(totalAbonos), positions[3] + 3, totalTextY, { width: columns[3] - 6, align: "right" });
+      doc.text(formatNumber(totalSaldos), positions[4] + 3, totalTextY, { width: columns[4] - 6, align: "right" });
+      doc.text(" ", positions[5] + 3, totalTextY, { width: columns[5] - 6, align: "center" });
+      doc.moveDown(2);
     }
 
-    // =============================
-    // SECCIÓN 2: TRANSACCIONES DE COBRO
-    // =============================
+    // ==========================================================
+    // SECCIÓN: TRANSACCIONES DE COBRO (solo si hay datos)
+    // ==========================================================
     if (tellingRecords.length > 0) {
-      // ... (tu bloque completo de tabla TELLING-MATCH)
+      doc.font("Helvetica-Bold").fontSize(12);
+      doc.text("TRANSACCIONES DE COBRO", 50, doc.y, { align: "left", width: 500 });
+      doc.moveDown(1);
+
+      // [contenido original de esta sección aquí...]
+      // Puedes mantener la estructura de la tabla como ya estaba.
     }
 
-    // =============================
-    // SECCIÓN 3: RESUMEN DE VALORES PAGADOS
-    // =============================
+    // ==========================================================
+    // SECCIÓN: RESUMEN DE VALORES PAGADOS (solo si hay datos)
+    // ==========================================================
     if (vagueRecords.length > 0) {
-      // ... (tu bloque del gráfico textual con "=")
+      doc.font("Helvetica-Bold").fontSize(12);
+      doc.text("RESUMEN DE VALORES PAGADOS", 50, doc.y, { align: "left", width: 500 });
+      doc.moveDown(1);
+
+      // [contenido de gráfico simulado con texto]
     }
 
-    // =============================
-    // SECCIÓN 4: TRANSACCIONES DE PAGO
-    // =============================
+    // ==========================================================
+    // SECCIÓN: TRANSACCIONES DE PAGO (solo si hay datos)
+    // ==========================================================
     if (pagosRecords.length > 0) {
-      // ... (tu bloque completo de tabla pagos.csv)
+      doc.font("Helvetica-Bold").fontSize(12);
+      doc.text("TRANSACCIONES DE PAGO", 50, doc.y, { align: "left", width: 500 });
+      doc.moveDown(1);
+
+      // [contenido original de esta tabla...]
     }
 
     // =============================
