@@ -325,8 +325,8 @@ app.get("/generar-reporte", async (req, res) => {
     const totalGasto = vagueMatrix.reduce((sum, r) => sum + r.gasto, 0);
     const maxGasto = Math.max(...vagueMatrix.map(r => r.gasto));
 
-    const labelWidth = 20;
-    const barMaxChars = 40;
+    const labelWidth = 21;
+    const barMaxChars = 35;
     const barChar = "="; // carácter sólido seguro
 
     doc.font("Courier").fontSize(9).fillColor("black");
