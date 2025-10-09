@@ -338,7 +338,7 @@ app.get("/generar-reporte", async (req, res) => {
       }
 
       const porcentaje = totalGasto > 0 ? (gasto / totalGasto) * 100 : 0;
-      const barLength = maxGasto > 0 ? Math.round((gasto / maxGasto) * barMaxChars) : 0;
+      const barLength = maxGasto > 0 ? Math.round((gasto / totalGasto) * barMaxChars) : 0;
 
       // Reproducir barra sólida
       const bar = barChar.repeat(barLength).padEnd(barMaxChars, " ");
