@@ -2,6 +2,20 @@ import express from "express";
 import PDFDocument from "pdfkit";
 import csvtojson from "csvtojson";
 
+// Para Node.js < 18, necesitamos node-fetch
+let fetch;
+try {
+  // Intentar usar fetch nativo (Node.js 18+)
+  if (typeof globalThis.fetch === 'undefined') {
+    throw new Error('Fetch no disponible');
+  }
+  fetch = globalThis.fetch;
+} catch (error) {
+  // Fallback a node-fetch
+  const nodeFetch = await import('node-fetch');
+  fetch = nodeFetch.default;
+}
+
 const app = express();
 
 // Middleware para logging de requests
@@ -58,6 +72,9 @@ const formatDate = (dateString) => {
 app.get("/generar-reporte", async (req, res) => {
   console.log("[start] /generar-reporte request received");
 
+  // Variable para control de páginas
+  let pageNumber = 1;
+
   try {
     const urlsParam = req.query.url;
     if (!urlsParam) {
@@ -81,36 +98,52 @@ app.get("/generar-reporte", async (req, res) => {
     for (const url of urls) {
       try {
         console.log(`[fetch] Descargando: ${url}`);
-        const response = await fetch(url, {
-          timeout: 30000,
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (compatible; ReportGenerator/1.0)'
+        
+        // Usar AbortController para timeout
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 30000);
+
+        try {
+          const response = await fetch(url, {
+            signal: controller.signal,
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (compatible; ReportGenerator/1.0)'
+            }
+          });
+          clearTimeout(timeoutId);
+          
+          if (!response.ok) {
+            console.warn(`[fetch] Error ${response.status} para: ${url}`);
+            continue;
           }
-        });
-        
-        if (!response.ok) {
-          console.warn(`[fetch] Error ${response.status} para: ${url}`);
-          continue;
+
+          const text = await response.text();
+          if (!text.trim()) {
+            console.warn(`[fetch] CSV vacío para: ${url}`);
+            continue;
+          }
+
+          const jsonData = await csvtojson({
+            checkType: false,
+            trim: true
+          }).fromString(text);
+
+          csvDataArr.push({ 
+            url, 
+            data: jsonData,
+            filename: url.split('/').pop() || 'unknown.csv'
+          });
+          
+          console.log(`[fetch] Procesado: ${url} (${jsonData.length} registros)`);
+          
+        } catch (fetchError) {
+          clearTimeout(timeoutId);
+          if (fetchError.name === 'AbortError') {
+            console.warn(`[fetch] Timeout para: ${url}`);
+          } else {
+            throw fetchError;
+          }
         }
-
-        const text = await response.text();
-        if (!text.trim()) {
-          console.warn(`[fetch] CSV vacío para: ${url}`);
-          continue;
-        }
-
-        const jsonData = await csvtojson({
-          checkType: false,
-          trim: true
-        }).fromString(text);
-
-        csvDataArr.push({ 
-          url, 
-          data: jsonData,
-          filename: url.split('/').pop() || 'unknown.csv'
-        });
-        
-        console.log(`[fetch] Procesado: ${url} (${jsonData.length} registros)`);
       } catch (error) {
         console.error(`[fetch] Error cargando ${url}:`, error.message);
       }
@@ -187,6 +220,27 @@ app.get("/generar-reporte", async (req, res) => {
 
     doc.pipe(res);
 
+    // Función para pie de página
+    const addFooter = (currentPageNumber) => {
+      const pageHeight = doc.page.height;
+      doc.fontSize(8).fillColor("#7f8c8d");
+      doc.text(
+        `Generado el ${new Date().toLocaleString("es-EC")} - Página ${currentPageNumber}`,
+        50,
+        pageHeight - 30,
+        { align: "center", width: 500 }
+      );
+    };
+
+    // Manejar eventos de página
+    doc.on('pageAdded', () => {
+      pageNumber++;
+      // Esperar un momento para que la página se establezca completamente
+      process.nextTick(() => {
+        addFooter(pageNumber);
+      });
+    });
+
     // =============================
     // ENCABEZADO
     // =============================
@@ -217,11 +271,17 @@ app.get("/generar-reporte", async (req, res) => {
     doc.moveTo(50, doc.y).lineTo(545, doc.y).strokeColor("#bdc3c7").stroke();
     doc.moveDown();
 
+    // Pie de página para la primera página
+    addFooter(pageNumber);
+
     // ==========================================================
     // SECCIÓN: LISTADO DE ESTUDIANTES
     // ==========================================================
     if (vagueRecords.length > 0) {
-      if (doc.y > 600) doc.addPage();
+      if (doc.y > 600) {
+        doc.addPage();
+        // El footer se agregará automáticamente por el evento pageAdded
+      }
       
       doc.font("Helvetica-Bold").fontSize(12).fillColor("#2c3e50")
          .text("LISTADO DE ESTUDIANTES");
@@ -309,6 +369,7 @@ app.get("/generar-reporte", async (req, res) => {
         
         doc.fillColor(estadoColor);
         doc.text(estado, positions[5] + 3, textY, { width: columns[5] - 6, align: "center" });
+        doc.fillColor("#2c3e50"); // Reset color
         
         y += rowHeight;
       });
@@ -347,7 +408,9 @@ app.get("/generar-reporte", async (req, res) => {
     // SECCIÓN: TRANSACCIONES DE COBRO
     // ==========================================================
     if (tellingRecords.length > 0) {
-      if (doc.y + 100 > doc.page.height - 50) doc.addPage();
+      if (doc.y + 100 > doc.page.height - 50) {
+        doc.addPage();
+      }
       
       doc.font("Helvetica-Bold").fontSize(12).fillColor("#2c3e50")
          .text("TRANSACCIONES DE COBRO");
@@ -454,7 +517,9 @@ app.get("/generar-reporte", async (req, res) => {
     // SECCIÓN: RESUMEN DE VALORES PAGADOS
     // ==========================================================
     if (vagueRecords.length > 0) {
-      if (doc.y + 80 > doc.page.height - 50) doc.addPage();
+      if (doc.y + 80 > doc.page.height - 50) {
+        doc.addPage();
+      }
 
       doc.font("Helvetica-Bold").fontSize(12).fillColor("#2c3e50")
          .text("RESUMEN DE VALORES PAGADOS");
@@ -507,7 +572,9 @@ app.get("/generar-reporte", async (req, res) => {
         return dateA - dateB;
       });
 
-      if (doc.y + 100 > doc.page.height - 50) doc.addPage();
+      if (doc.y + 100 > doc.page.height - 50) {
+        doc.addPage();
+      }
 
       doc.font("Helvetica-Bold").fontSize(12).fillColor("#2c3e50")
          .text("TRANSACCIONES DE PAGO");
@@ -609,32 +676,22 @@ app.get("/generar-reporte", async (req, res) => {
     }
 
     // =============================
-    // PIE DE PÁGINA
-    // =============================
-    const addFooter = (doc) => {
-      const pageHeight = doc.page.height;
-      doc.fontSize(8).fillColor("#7f8c8d");
-      doc.text(
-        `Generado el ${new Date().toLocaleString("es-EC")} - Página ${doc.bufferedPageRange().count}`,
-        50,
-        pageHeight - 30,
-        { align: "center", width: 500 }
-      );
-    };
-
-    doc.on('pageAdded', () => {
-      addFooter(doc);
-    });
-
-    addFooter(doc);
-
-    // =============================
     // FINALIZAR PDF
     // =============================
     doc.end();
 
     doc.on('end', () => {
       console.log("[done] PDF generado exitosamente ✅");
+    });
+
+    doc.on('error', (error) => {
+      console.error("[error] Error en generación de PDF:", error);
+      if (!res.headersSent) {
+        res.status(500).json({ 
+          error: "Error generando el PDF",
+          details: error.message 
+        });
+      }
     });
 
   } catch (error) {
@@ -662,9 +719,21 @@ app.get("/health", (req, res) => {
   res.json({ status: "OK", timestamp: new Date().toISOString() });
 });
 
+// Ruta de ejemplo para testing
+app.get("/test", (req, res) => {
+  res.json({ 
+    message: "Servidor funcionando correctamente",
+    endpoints: {
+      generar_reporte: "GET /generar-reporte?url=URL1,URL2,URL3",
+      health: "GET /health"
+    }
+  });
+});
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`🚀 Servidor corriendo en puerto ${PORT}`);
-  console.log(`📊 Endpoint: http://localhost:${PORT}/generar-reporte`);
-  console.log(`❤️  Health: http://localhost:${PORT}/health`);
+  console.log(`📊 Endpoint principal: http://localhost:${PORT}/generar-reporte`);
+  console.log(`❤️  Health check: http://localhost:${PORT}/health`);
+  console.log(`🧪 Test: http://localhost:${PORT}/test`);
 });
