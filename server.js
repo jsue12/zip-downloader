@@ -76,21 +76,6 @@ app.get("/generar-reporte", async (req, res) => {
 
     const doc = new PDFDocument({ margin: 50, size: "A4" });
     
-    let pageNumber = 0;
-    
-    // Cada vez que se añade una página nueva
-    const addPageNumber = () => {
-      pageNumber++;
-      doc.font("Helvetica").fontSize(9).fillColor("black")
-         .text(`Página ${pageNumber}`, 50, 25, { align: "right" });
-    };
-    
-    // Al crear la primera página
-    addPageNumber();
-    
-    // Cada vez que se añade una nueva página
-    doc.on("pageAdded", addPageNumber);
-    
     doc.pipe(res);
 
     const formatNumber = n => {
