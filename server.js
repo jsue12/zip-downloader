@@ -430,7 +430,7 @@ if (pagosEntry && pagosEntry.data && pagosEntry.data.length > 0) {
     });
 
     // Texto
-    const textY = py + 7;
+    const textY = py + 7.5;
     doc.font("Helvetica").fontSize(9).fillColor("black");
     doc.text(String(i + 1), pPos[0] + 3, textY, { width: pCols.n - 6, align: "center" });
     doc.text(fecha, pPos[1] + 3, textY, { width: pCols.fecha - 6, align: "center" });
@@ -455,6 +455,7 @@ if (pagosEntry && pagosEntry.data && pagosEntry.data.length > 0) {
 
   // Bordes
   strokeRect(doc, pPos[0], py, totalWidthPagos, pRowH);
+  strokeRect(doc, pPos[5], py, pCols.valor, pRowH);
 
   const totalTextY = py + 7;
   const firstFiveWidth = Object.values(pCols).slice(0, 5).reduce((a, b) => a + b, 0);
