@@ -188,7 +188,7 @@ if (vagueRecords.length > 0) {
     y += rowHeight;
   });
 
-  if (y + rowHeight > doc.page.height - 60) {
+  if (y + rowHeight > doc.page.height - 50) {
     doc.addPage();
     y = 50;
   }
@@ -273,11 +273,11 @@ if (tellingRecords.length > 0) {
       ? fechaRaw
       : `${String(fechaObj.getDate()).padStart(2, "0")}-${String(fechaObj.getMonth() + 1).padStart(2, "0")}-${fechaObj.getFullYear()}`;
 
-    if (ty + tRowH > doc.page.height - 60) {
+    if (ty + tRowH > doc.page.height - 50) {
       doc.addPage();
       ty = 50;
       //drawTellingHeaders(ty);
-      ty += tRowH;
+      //ty += tRowH;
     }
 
     if (i % 2 === 0) fillRect(doc, tPos[0], ty, 495, tRowH, "#fafafa");
@@ -343,7 +343,7 @@ if (pagosRecords.length === 0) {
 
   //GRAFICOS
   
-      if (doc.y + 80 > doc.page.height - 50) {
+      if (doc.y +15 > doc.page.height - 50) {
       doc.addPage();
       doc.y = 50;
     }
@@ -391,7 +391,7 @@ if (pagosRecords.length === 0) {
 
   // TABLA DE PAGOS
   
-  if (doc.y + 80 > doc.page.height - 60) {
+  if (doc.y + 80 > doc.page.height - 50) {
   doc.addPage();
   doc.y = 50;
 }
@@ -449,7 +449,7 @@ doc.moveDown(1);
       doc.addPage();
       py = 50;
       //drawPagosHeaders(py);
-      py += pRowH;
+      //py += pRowH;
     }
 
     // Fondo alterno
@@ -478,7 +478,7 @@ doc.moveDown(1);
   // ===================
   // TOTAL FINAL
   // ===================
-  if (py + pRowH > doc.page.height - 60) {
+  if (py + pRowH > doc.page.height - 50) {
     doc.addPage();
     py = 50;
   }
