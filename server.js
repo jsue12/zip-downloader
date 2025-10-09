@@ -304,10 +304,10 @@ app.get("/generar-reporte", async (req, res) => {
 
     //GRAFICOS
 
-    if (doc.y + 80 > doc.page.height - 50) {
-      doc.addPage();
-      doc.y = 50;
-    }
+    //if (doc.y + 80 > doc.page.height - 50) {
+      //doc.addPage();
+      //doc.y = 50;
+    //}
 
     doc.font("Helvetica-Bold").fontSize(12);
     doc.text("RESUMEN DE VALORES PAGADOS", 50, doc.y, { align: "left", width: 500 });
