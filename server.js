@@ -328,8 +328,7 @@ doc.font(fontPath);
     
 const labelWidth = 18;
 const barMaxChars = 40;
-const barChar = "■"; // carácter sólido seguro
-const spacing = 3;
+const barChar = "="; // carácter sólido seguro
 
 doc.font("Courier").fontSize(9).fillColor("black");
 
