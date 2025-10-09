@@ -322,10 +322,6 @@ vagueMatrix.sort((a, b) => b.gasto - a.gasto);
 const totalGasto = vagueMatrix.reduce((sum, r) => sum + r.gasto, 0);
 const maxGasto = Math.max(...vagueMatrix.map(r => r.gasto));
 
-const path = require('path');
-const fontPath = path.join(__dirname, 'fuentes', 'ttf', 'DejaVuSans.ttf');
-doc.font(fontPath);
-    
 const labelWidth = 18;
 const barMaxChars = 40;
 const barChar = "="; // carácter sólido seguro
