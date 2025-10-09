@@ -325,7 +325,7 @@ app.get("/generar-reporte", async (req, res) => {
     const totalGasto = vagueMatrix.reduce((sum, r) => sum + r.gasto, 0);
     const maxGasto = Math.max(...vagueMatrix.map(r => r.gasto));
 
-    const labelWidth = 50;
+    const labelWidth = 25;
     const barMaxChars = 40;
     const barChar = "="; // carácter sólido seguro
 
@@ -337,18 +337,139 @@ app.get("/generar-reporte", async (req, res) => {
         doc.y = 50;
       }
 
-      const porcentaje = totalGasto > 0 ? (gasto / totalGasto) * 100 : 0;
-      const barLength = maxGasto > 0 ? Math.round((gasto / totalGasto) * barMaxChars) : 0;
+    const porcentaje = totalGasto > 0 ? (gasto / totalGasto) * 100 : 0;
+    const barLength = maxGasto > 0 ? Math.round((gasto / totalGasto) * barMaxChars) : 0;
 
-      // Reproducir barra sólida
-      const bar = barChar.repeat(barLength).padEnd(barMaxChars, " ");
+    // Reproducir barra sólida
+    const bar = barChar.repeat(barLength).padEnd(barMaxChars, " ");
 
-      const nombre = estudiante.padEnd(labelWidth).substring(0, labelWidth);
-      const legend = `${formatNumber(gasto)} — ${porcentaje.toFixed(2)}%`;
+    const nombre = estudiante.padEnd(labelWidth).substring(0, labelWidth);
+    const legend = `${formatNumber(gasto)} — ${porcentaje.toFixed(2)}%`;
 
-      const line = `${nombre} | ${bar} | ${legend}`;
-      doc.text(line, marginLeft, doc.y, { continued: false });
+    const line = `${nombre} | ${bar} | ${legend}`;
+    doc.text(line, marginLeft, doc.y, { continued: false });
+  });
+
+// =============================
+// TABLA DE PAGOS (pagos.csv)
+// =============================
+
+    const pagosEntry = csvDataArr.find(c => c.url.toLowerCase().includes("pagos"));
+if (pagosEntry && pagosEntry.data && pagosEntry.data.length > 0) {
+  const pagosRecords = pagosEntry.data;
+
+  // Verificar espacio disponible
+  if (doc.y + 80 > doc.page.height - 60) {
+    doc.addPage();
+    doc.y = 50;
+  }
+
+  doc.moveDown(2);
+  doc.font("Helvetica-Bold").fontSize(12);
+  doc.text("TRANSACCIONES DE PAGO", 50, doc.y, { align: "left", width: 500 });
+  doc.moveDown(1);
+
+  const pMargin = 50;
+  const pRowH = 22;
+  const pCols = { n: 35, fecha: 69, estudiante: 135, concepto: 101, numfac: 90, valor: 65 };
+  const pHeaders = ["N°", "FECHA", "ESTUDIANTE", "CONCEPTO", "# FAC O COT", "VALOR"];
+  const pPos = [
+    pMargin,
+    pMargin + pCols.n,
+    pMargin + pCols.n + pCols.fecha,
+    pMargin + pCols.n + pCols.fecha + pCols.estudiante,
+    pMargin + pCols.n + pCols.fecha + pCols.estudiante + pCols.concepto,
+    pMargin + pCols.n + pCols.fecha + pCols.estudiante + pCols.concepto + pCols.numfac
+  ];
+  const totalWidthPagos = Object.values(pCols).reduce((a, b) => a + b); // 495 pt
+
+  // Dibujar encabezados
+  const drawPagosHeaders = (yPos) => {
+    pHeaders.forEach((h, i) => {
+      fillRect(doc, pPos[i], yPos, Object.values(pCols)[i], pRowH, "#e6e6e6");
+      strokeRect(doc, pPos[i], yPos, Object.values(pCols)[i], pRowH);
+      doc.font("Helvetica-Bold").fontSize(9).fillColor("black")
+        .text(h, pPos[i] + 4, yPos + 7, {
+          width: Object.values(pCols)[i] - 8,
+          align: "center"
+        });
     });
+  };
+
+  let py = doc.y;
+  drawPagosHeaders(py);
+  py += pRowH;
+
+  let totalValorPagos = 0;
+
+  pagosRecords.forEach((row, i) => {
+    const fecha = String(row["fecha"] || "");
+    const estudiante = String(row["estudiante"] || "").trim();
+    const concepto = String(row["concepto"] || "").trim();
+    const numfac = String(row["numfac"] || "").trim();
+    const valor = parseFloat(String(row["valor"]).replace(/[^\d.-]/g, "")) || 0;
+    totalValorPagos += valor;
+
+    // Control de salto de página
+    if (py + pRowH > doc.page.height - 60) {
+      doc.addPage();
+      py = 50;
+      drawPagosHeaders(py);
+      py += pRowH;
+    }
+
+    // Fondo alterno
+    if (i % 2 === 0)
+      fillRect(doc, pPos[0], py, totalWidthPagos, pRowH, "#fafafa");
+
+    // Bordes de fila
+    let px = pPos[0];
+    Object.values(pCols).forEach(cw => {
+      strokeRect(doc, px, py, cw, pRowH);
+      px += cw;
+    });
+
+    // Texto
+    const textY = py + 7;
+    doc.font("Helvetica").fontSize(9).fillColor("black");
+    doc.text(String(i + 1), pPos[0] + 3, textY, { width: pCols.n - 6, align: "center" });
+    doc.text(fecha, pPos[1] + 3, textY, { width: pCols.fecha - 6, align: "center" });
+    doc.text(estudiante, pPos[2] + 4, textY, { width: pCols.estudiante - 8, align: "left" });
+    doc.text(concepto, pPos[3] + 4, textY, { width: pCols.concepto - 8, align: "left" });
+    doc.text(numfac, pPos[4] + 4, textY, { width: pCols.numfac - 8, align: "left" });
+    doc.text(formatNumber(valor), pPos[5] + 4, textY, { width: pCols.valor - 8, align: "left" });
+
+    py += pRowH;
+  });
+
+  // ===================
+  // TOTAL FINAL
+  // ===================
+  if (py + pRowH > doc.page.height - 60) {
+    doc.addPage();
+    py = 50;
+  }
+
+  // Fondo gris
+  fillRect(doc, pPos[0], py, totalWidthPagos, pRowH, "#e6e6e6");
+
+  // Bordes
+  strokeRect(doc, pPos[0], py, totalWidthPagos, pRowH);
+
+  const totalTextY = py + 7;
+  const firstFiveWidth = Object.values(pCols).slice(0, 5).reduce((a, b) => a + b, 0);
+
+  doc.font("Helvetica-Bold").fontSize(9).fillColor("black");
+  doc.text("TOTAL DE VALORES ENTREGADOS", pPos[0] + 4, totalTextY, {
+    width: firstFiveWidth - 8,
+    align: "right"
+  });
+  doc.text(formatNumber(totalValorPagos), pPos[5] + 4, totalTextY, {
+    width: pCols.valor - 8,
+    align: "left"
+  });
+}
+
 
     // Finalizar PDF
     doc.end();
