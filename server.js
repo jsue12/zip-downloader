@@ -75,6 +75,24 @@ app.get("/generar-reporte", async (req, res) => {
     res.setHeader("Content-Disposition", "attachment; filename=reporte.pdf");
 
     const doc = new PDFDocument({ margin: 50, size: "A4" });
+    
+    let pageNumber = 1;
+    
+    // Función para dibujar número de página
+    const drawPageNumber = () => {
+      doc.font("Helvetica").fontSize(9).fillColor("gray")
+         .text(`Página ${pageNumber}`, 0, 30, { align: "right" });
+    };
+    
+    // Dibuja en la primera página
+    drawPageNumber();
+    
+    // Cada vez que se agrega una página nueva
+    doc.on("pageAdded", () => {
+      pageNumber++;
+      drawPageNumber();
+    });
+    
     doc.pipe(res);
 
     const formatNumber = n => {
