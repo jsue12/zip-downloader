@@ -90,7 +90,7 @@ app.get("/generar-reporte", async (req, res) => {
     doc.font("Helvetica-Bold").fontSize(11).text("TESORERO:", { continued: true })
       .font("Helvetica").text(" JUAN PABLO BARBA MEDINA");
     doc.font("Helvetica-Bold").text("FECHA DEL INFORME:", { continued: true })
-      .font("Helvetica").text( ${new Date().toLocaleDateString("es-EC")});
+      .font("Helvetica").text(` ${new Date().toLocaleDateString("es-EC")}`);
     doc.moveDown();
 
     // =============================
@@ -99,9 +99,9 @@ app.get("/generar-reporte", async (req, res) => {
     doc.font("Helvetica-Bold").fontSize(12).text("RESUMEN EJECUTIVO");
     doc.moveDown(0.5);
     doc.font("Helvetica").fontSize(11);
-    doc.text(VALORES RECIBIDOS (+): ${formatNumber(recibidos)});
-    doc.text(VALORES ENTREGADOS (-): ${formatNumber(entregados)});
-    doc.font("Helvetica-Bold").text(SALDO TOTAL (=): ${formatNumber(saldo)});
+    doc.text(`VALORES RECIBIDOS (+): ${formatNumber(recibidos)}`);
+    doc.text(`VALORES ENTREGADOS (-): ${formatNumber(entregados)}`);
+    doc.font("Helvetica-Bold").text(`SALDO TOTAL (=): ${formatNumber(saldo)}`);
     doc.moveDown().moveTo(50, doc.y).lineTo(545, doc.y).stroke();
     doc.moveDown();
 
@@ -114,10 +114,13 @@ app.get("/generar-reporte", async (req, res) => {
     const marginLeft = 50;
     const colWidths = { nro: 35, estudiante: 162, cuotas: 72, abonos: 72, saldos: 72, estado: 82 };
     const columns = Object.values(colWidths);
-    const positions = columns.reduce((acc, w, i) => {
-      acc.push((acc[i - 1] ?? marginLeft) + (i ? columns[i - 1] : 0));
-      return acc;
-    }, []);
+    // construir posiciones acumuladas a partir de marginLeft
+    const positions = [];
+    let accX = marginLeft;
+    for (let i = 0; i < columns.length; i++) {
+      positions.push(accX);
+      accX += columns[i];
+    }
     const rowHeight = 22;
     const headers = ["N°", "ESTUDIANTE", "CUOTAS", "ABONOS", "SALDOS", "ESTADO"];
 
@@ -153,7 +156,7 @@ app.get("/generar-reporte", async (req, res) => {
       const textY = y + 7;
       doc.font("Helvetica").fontSize(10).fillColor("black");
       doc.text(String(i + 1), positions[0] + 3, textY, { width: columns[0] - 6, align: "center" });
-      doc.text(estudiante, positions[1] + 4, textY, { width: columns[0] +columns[1] - 8, align: "left" });
+      doc.text(estudiante, positions[1] + 4, textY, { width: columns[1] - 8, align: "left" });
       doc.text(formatNumber(cuotas), positions[2] + 3, textY, { width: columns[2] - 6, align: "right" });
       doc.text(formatNumber(abonos), positions[3] + 3, textY, { width: columns[3] - 6, align: "right" });
       doc.text(formatNumber(saldos), positions[4] + 3, textY, { width: columns[4] - 6, align: "right" });
@@ -163,39 +166,39 @@ app.get("/generar-reporte", async (req, res) => {
       y += rowHeight;
     });
 
-    if (y + rowHeight > doc.page.height - 60) { 
-      doc.addPage(); 
-      y = 50; 
+    if (y + rowHeight > doc.page.height - 60) {
+      doc.addPage();
+      y = 50;
     }
-    
+
     // Cálculo de anchos combinados
     const totalWidthAll = columns.reduce((a, b) => a + b); // ancho total
     const firstTwoWidth = columns[0] + columns[1]; // N° + ESTUDIANTE
-    
+
     // Fondo gris para toda la fila
     fillRect(doc, positions[0], y, totalWidthAll, rowHeight, "#e6e6e6");
-    
+
     // Bordes
     // Celda combinada (N° + ESTUDIANTE)
     strokeRect(doc, positions[0], y, firstTwoWidth, rowHeight);
-    
+
     // Resto de celdas
     let tx3 = positions[2];
     for (let i = 2; i < columns.length; i++) {
       strokeRect(doc, tx3, y, columns[i], rowHeight);
       tx3 += columns[i];
     }
-    
+
     // Texto centrado verticalmente
     const totalTextY = y + 7;
-    
+
     doc.font("Helvetica-Bold").fontSize(10).fillColor("black");
     doc.text("TOTAL GENERAL", positions[0] + 4, totalTextY, { width: firstTwoWidth - 8, align: "center" });
     doc.text(formatNumber(totalCuotas), positions[2] + 3, totalTextY, { width: columns[2] - 6, align: "right" });
     doc.text(formatNumber(totalAbonos), positions[3] + 3, totalTextY, { width: columns[3] - 6, align: "right" });
     doc.text(formatNumber(totalSaldos), positions[4] + 3, totalTextY, { width: columns[4] - 6, align: "right" });
     doc.text(" ", positions[5] + 3, totalTextY, { width: columns[5] - 6, align: "center" });
-    
+
     doc.moveDown(2);
 
     // =============================
@@ -242,13 +245,13 @@ app.get("/generar-reporte", async (req, res) => {
       const comp = String(row[3] || "");
       const valora = parseFloat(String(row[4]).replace(/[^\d.-]/g, "")) || 0;
       totalValor += valora;
-    
+
       // Formatear fecha si es válida
       const fechaObj = new Date(fechaRaw);
       const fecha = isNaN(fechaObj)
         ? fechaRaw
-        : ${String(fechaObj.getDate()).padStart(2, "0")}-${String(fechaObj.getMonth() + 1).padStart(2, "0")}-${fechaObj.getFullYear()};
-    
+        : `${String(fechaObj.getDate()).padStart(2, "0")}-${String(fechaObj.getMonth() + 1).padStart(2, "0")}-${fechaObj.getFullYear()}`;
+
       // Salto de página si es necesario
       if (ty + tRowH > doc.page.height - 60) {
         doc.addPage();
@@ -256,14 +259,14 @@ app.get("/generar-reporte", async (req, res) => {
         //drawTellingHeaders(ty);
         ty += tRowH;
       }
-    
+
       // Fondo alterno
       if (i % 2 === 0) fillRect(doc, tPos[0], ty, 495, tRowH, "#fafafa");
-    
+
       // Bordes de fila
       let tx2 = tPos[0];
       Object.values(tCols).forEach((cw) => { strokeRect(doc, tx2, ty, cw, tRowH); tx2 += cw; });
-    
+
       // Texto en celdas
       const tTextY = ty + 7.5;
       doc.font("Helvetica").fontSize(9).fillColor("black");
@@ -273,34 +276,34 @@ app.get("/generar-reporte", async (req, res) => {
       doc.text(banco, tPos[3] + 4, tTextY, { width: tCols.banco - 8, align: "left" });
       doc.text(comp, tPos[4] + 4, tTextY, { width: tCols.comprobante - 8, align: "left" });
       doc.text(formatNumber(valora), tPos[5] + 3, tTextY, { width: tCols.valor - 6, align: "right" });
-    
+
       ty += tRowH;
     });
-    
+
     // ===================
     // TOTAL FINAL
     // ===================
     if (ty + tRowH > doc.page.height - 60) { doc.addPage(); ty = 50; }
-    
+
     const totalWidth = Object.values(tCols).slice(0, 5).reduce((a, b) => a + b, 0); // ancho de las 5 primeras columnas
-    
+
     // Fondo gris de ambas celdas
     fillRect(doc, tPos[0], ty, totalWidth + tCols.valor, tRowH, "#e6e6e6");
-    
+
     // Bordes
     strokeRect(doc, tPos[0], ty, totalWidth, tRowH);        // celda combinada
     strokeRect(doc, tPos[5], ty, tCols.valor, tRowH);       // celda de valor
-    
+
     // Texto centrado verticalmente
     const tTextY = ty + 7.5;
-    
+
     doc.font("Helvetica-Bold").fontSize(9).fillColor("black");
     doc.text("TOTAL DE VALORES RECIBIDOS", tPos[0] + 4, tTextY, { width: totalWidth - 8, align: "right" });
     doc.text(formatNumber(totalValor), tPos[5] + 3, tTextY, { width: tCols.valor - 6, align: "right" });
     doc.moveDown(2);
 
     //GRAFICOS
-        
+
     if (doc.y + 80 > doc.page.height - 50) {
       doc.addPage();
       doc.y = 50;
@@ -310,43 +313,43 @@ app.get("/generar-reporte", async (req, res) => {
     doc.text("RESUMEN DE VALORES PAGADOS", 50, doc.y, { align: "left", width: 500 });
     doc.moveDown(1);
 
-const vagueMatrix = vagueRecords.map(row => {
-  const keys = Object.keys(row);
-  const estudiante = String(row[keys[0]] || "").trim();
-  const gasto = parseFloat(row[keys[4]] || 0);
-  return { estudiante, gasto };
-}).filter(r => r.estudiante && !isNaN(r.gasto));
+    const vagueMatrix = vagueRecords.map(row => {
+      const keys = Object.keys(row);
+      const estudiante = String(row[keys[0]] || "").trim();
+      const gasto = parseFloat(row[keys[4]] || 0);
+      return { estudiante, gasto };
+    }).filter(r => r.estudiante && !isNaN(r.gasto));
 
-vagueMatrix.sort((a, b) => b.gasto - a.gasto);
+    vagueMatrix.sort((a, b) => b.gasto - a.gasto);
 
-const totalGasto = vagueMatrix.reduce((sum, r) => sum + r.gasto, 0);
-const maxGasto = Math.max(...vagueMatrix.map(r => r.gasto));
-    
-const labelWidth = 18;
-const barMaxChars = 40;
-const barChar = "="; // carácter sólido seguro
+    const totalGasto = vagueMatrix.reduce((sum, r) => sum + r.gasto, 0);
+    const maxGasto = Math.max(...vagueMatrix.map(r => r.gasto));
 
-doc.font("Courier").fontSize(9).fillColor("black");
+    const labelWidth = 18;
+    const barMaxChars = 40;
+    const barChar = "="; // carácter sólido seguro
 
-vagueMatrix.forEach(({ estudiante, gasto }) => {
-  if (doc.y + 15 > doc.page.height - 50) {
-    doc.addPage();
-    doc.y = 50;
-  }
+    doc.font("Courier").fontSize(9).fillColor("black");
 
-  const porcentaje = totalGasto > 0 ? (gasto / totalGasto) * 100 : 0;
-  const barLength = maxGasto > 0 ? Math.round((gasto / maxGasto) * barMaxChars) : 0;
+    vagueMatrix.forEach(({ estudiante, gasto }) => {
+      if (doc.y + 15 > doc.page.height - 50) {
+        doc.addPage();
+        doc.y = 50;
+      }
 
-  // Reproducir barra sólida
-  const bar = barChar.repeat(barLength).padEnd(barMaxChars, " ");
+      const porcentaje = totalGasto > 0 ? (gasto / totalGasto) * 100 : 0;
+      const barLength = maxGasto > 0 ? Math.round((gasto / maxGasto) * barMaxChars) : 0;
 
-  const nombre = estudiante.padEnd(labelWidth).substring(0, labelWidth);
-  const legend = ${formatNumber(gasto)} — ${porcentaje.toFixed(2)}%;
+      // Reproducir barra sólida
+      const bar = barChar.repeat(barLength).padEnd(barMaxChars, " ");
 
-  const line = ${nombre} | ${bar} | ${legend};
-  doc.text(line, marginLeft, doc.y, { continued: false });
-});
-    
+      const nombre = estudiante.padEnd(labelWidth).substring(0, labelWidth);
+      const legend = `${formatNumber(gasto)} — ${porcentaje.toFixed(2)}%`;
+
+      const line = `${nombre} | ${bar} | ${legend}`;
+      doc.text(line, marginLeft, doc.y, { continued: false });
+    });
+
     // Finalizar PDF
     doc.end();
     console.log("[done] PDF stream ended ✅");
@@ -357,6 +360,4 @@ vagueMatrix.forEach(({ estudiante, gasto }) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(Servidor corriendo en puerto ${PORT}));
-
-corrige este codigo
+app.listen(PORT, () => console.log(`Servidor corriendo en puerto ${PORT}`));
