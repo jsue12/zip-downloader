@@ -354,7 +354,7 @@ app.get("/generar-reporte", async (req, res) => {
 // TABLA DE PAGOS (pagos.csv)
 // =============================
 
-  const pagosEntry = csvDataArr.find(c => c.url.toLowerCase().includes("pagos"));
+const pagosEntry = csvDataArr.find(c => c.url.toLowerCase().includes("pagos"));
 const pagosRecords = pagosEntry?.data || [];
 
 // 🧠 ORDENAR POR FECHA ASCENDENTE
@@ -366,10 +366,10 @@ if (pagosRecords.length > 0) {
   });
 }
 
-// =============================
-// ENCABEZADO DE SECCIÓN
-// =============================
-if (doc.y + 80 > doc.page.height - 60) {
+if (pagosRecords.length === 0) {
+} else {
+
+  if (doc.y + 80 > doc.page.height - 60) {
   doc.addPage();
   doc.y = 50;
 }
@@ -378,24 +378,6 @@ doc.moveDown(2);
 doc.font("Helvetica-Bold").fontSize(12);
 doc.text("TRANSACCIONES DE PAGO", 50, doc.y, { align: "left", width: 500 });
 doc.moveDown(1);
-
-// =============================
-// SI NO EXISTEN REGISTROS
-// =============================
-if (pagosRecords.length === 0) {
-  fillRect(doc, 50, doc.y, 495, 25, "#f5f5f5");
-  strokeRect(doc, 50, doc.y, 495, 25);
-  doc.font("Helvetica-Oblique").fontSize(10).fillColor("#555");
-  doc.text("NO EXISTEN REGISTROS EN ESTA SECCIÓN", 50, doc.y + 7, {
-    width: 495,
-    align: "center",
-  });
-  doc.moveDown(2);
-} else {
-  // =============================
-  // DIBUJAR TABLA
-  // =============================
-
   const pMargin = 50;
   const pRowH = 22;
   const pCols = { n: 35, fecha: 69, estudiante: 135, concepto: 101, numfac: 90, valor: 65 };
