@@ -76,31 +76,20 @@ app.get("/generar-reporte", async (req, res) => {
 
     const doc = new PDFDocument({ margin: 50, size: "A4" });
     
-    let pages = []; // guardaremos las posiciones para escribir luego
+    let pageNumber = 0;
     
-    // Cada vez que se crea una nueva página, registramos su referencia
-    const registerPage = () => {
-      pages.push(doc);
+    // Cada vez que se añade una página nueva
+    const addPageNumber = () => {
+      pageNumber++;
+      doc.font("Helvetica").fontSize(9).fillColor("black")
+         .text(`Página ${pageNumber}`, 50, 25, { align: "right" });
     };
     
-    // Registrar la primera página
-    registerPage();
+    // Al crear la primera página
+    addPageNumber();
     
-    // Cuando se agregue una nueva página
-    doc.on("pageAdded", () => {
-      registerPage();
-    });
-    
-    // Dibujar el número de página temporalmente (solo "Página X")
-    const drawPageNumbers = () => {
-      pages.forEach((p, i) => {
-        const pageNum = i + 1;
-        const total = pages.length;
-        p.switchToPage(i);
-        p.font("Helvetica").fontSize(9).fillColor("black")
-          .text(`Página ${pageNum} de ${total}`, 50, 25, { align: "right" });
-      });
-    };
+    // Cada vez que se añade una nueva página
+    doc.on("pageAdded", addPageNumber);
     
     doc.pipe(res);
 
@@ -526,8 +515,6 @@ doc.moveDown(1);
     align: "right"
   });
 }
-
-drawPageNumbers();
     
     // Finalizar PDF
     doc.end();
