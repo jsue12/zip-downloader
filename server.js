@@ -80,7 +80,7 @@ app.get("/generar-reporte", async (req, res) => {
     
     // Función para dibujar número de página
     const drawPageNumber = () => {
-      doc.font("Helvetica").fontSize(9).fillColor("gray")
+      doc.font("Helvetica").fontSize(9).fillColor("black")
          .text(`Página ${pageNumber}`, 0, 30, { align: "right" });
     };
     
