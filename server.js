@@ -173,9 +173,9 @@ if (vagueRecords.length > 0) {
 
     totalCuotas += cuotas; totalAbonos += abonos; totalSaldos += saldos;
 
-    if (y + rowHeight > doc.page.height - 60) {
+    if (y + rowHeight > doc.page.height - 50) {
       doc.addPage();
-      //y = 50;
+      y = 50;
       //drawHeaders(y);
       y += rowHeight;
     }
@@ -318,7 +318,7 @@ if (tellingRecords.length > 0) {
   // ===================
   // TOTAL FINAL
   // ===================
-  if (ty + tRowH > doc.page.height - 60) {
+  if (ty + tRowH > doc.page.height - 50) {
     doc.addPage();
     ty = 50;
   }
@@ -460,7 +460,7 @@ doc.moveDown(1);
     totalValorPagos += valor;
 
     // Salto de página
-    if (py + pRowH > doc.page.height - 60) {
+    if (py + pRowH > doc.page.height - 50) {
       doc.addPage();
       py = 50;
       //drawPagosHeaders(py);
